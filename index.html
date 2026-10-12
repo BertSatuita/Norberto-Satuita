@@ -157,6 +157,18 @@
   select.show{display:block}
 
   .mode{margin-bottom:14px}
+  .camhelp{display:none;margin-top:12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid rgba(239,75,63,.35);font-size:12.5px;line-height:1.5}
+  .camhelp.show{display:block}
+  .camhelp > b{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:13.5px;margin-bottom:4px}
+  .camhelp ul{margin:6px 0 0;padding-left:18px}
+  .camhelp li{margin:3px 0}
+  .camhelp .os{margin-top:8px;color:var(--muted)}
+  .camhelp .row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .camhelp .wait{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .camhelp .wait i{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 1s infinite}
+  .reserved{display:none}
+  .reserved.show{display:inline-flex;cursor:pointer}
+  .reserved .g{background:var(--accent)!important}
   #modeSeg{grid-template-columns:1fr 1fr}
   #modeSeg button{flex-direction:row;justify-content:center;gap:7px;padding:10px 6px}
   .guide{display:none;padding:14px;border-radius:14px;border:1px solid rgba(239,75,63,.3);background:linear-gradient(0deg,var(--accent-soft),var(--accent-soft)),var(--card);margin-bottom:16px;font-size:12.5px;line-height:1.5}
@@ -369,6 +381,7 @@
   <nav>
     <div class="brand"><div class="mark"><i></i></div>Clipcast</div>
     <div class="navr">
+      <span class="pill reserved" id="camPill" title="The camera is reserved for this page. Click to release it."><span class="g"></span>Camera reserved · release</span>
       <span class="pill"><span class="g"></span>Private · stays on your device</span>
       <div class="bgpick">
         <button class="iconbtn" id="bgBtn" title="Background" aria-label="Change background" aria-expanded="false">
@@ -463,6 +476,14 @@
           <button class="btn sm" id="camBtn">Turn on</button>
         </div>
         <select id="camSelect" aria-label="Camera"><option value="">Default camera</option></select>
+        <div class="camhelp" id="camHelp" role="alert">
+          <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span id="camHelpTitle">Your camera is busy</span></b>
+          <div id="camHelpBody"></div>
+          <div class="row">
+            <button class="btn sm primary" id="camRetry">Try again</button>
+            <span class="wait" id="camWait"><i></i><span id="camWaitTxt">Checking again automatically…</span></span>
+          </div>
+        </div>
         <div class="ctl" id="ctlPos"><span>Position</span>
           <div class="mseg" data-key="pos">
             <button class="corner" data-v="tl" title="Top left" aria-label="Top left"><i></i></button>
@@ -476,6 +497,9 @@
         </div>
         <div class="ctl" id="ctlShape"><span>Shape</span>
           <div class="mseg" data-key="shape"><button data-v="circle">Circle</button><button data-v="square">Rounded</button></div>
+        </div>
+        <div class="ctl"><span title="Keeps the camera for this page once it has it, and reconnects automatically if it's lost">Keep camera reserved</span>
+          <div class="mseg" data-key="reserve"><button data-v="on">On</button><button data-v="off">Off</button></div>
         </div>
         <div class="ctl"><span>Mirror my image</span>
           <div class="mseg" data-key="mirror"><button data-v="on">On</button><button data-v="off">Off</button></div>
@@ -756,7 +780,7 @@
   syncOpts();
 
   // ---------- settings (mode + camera layout) ----------
-  const S = { mode:'both', pos:'br', size:'m', shape:'circle', mirror:'on', volSys:100, volMic:100, quality:'balanced', format:'mp4' };
+  const S = { mode:'both', pos:'br', size:'m', shape:'circle', mirror:'on', volSys:100, volMic:100, quality:'balanced', format:'mp4', reserve:'on' };
   // video/audio bitrates per preset; screen text stays sharp thanks to the 'detail' content hint
   const Q = {
     small:    { v:1_000_000, a:64_000,  fps:15, name:'Compact' },
@@ -821,7 +845,9 @@
     if (S.mode === 'meet'){ $('optSys').checked = true; $('optMic').checked = true; syncOpts(); }
     renderSettings();
     if (usesCam() && !camStream) startCamera();
-    if (!usesCam()) stopCamera();
+    renderCam();
+    if (!usesCam() && S.reserve !== 'on') stopCamera();
+    if (!usesCam()) hideCamHelp();
   });
   document.querySelectorAll('#qualSeg button').forEach(b => b.onclick = () => {
     if (recorder && recorder.state !== 'inactive') return toast('Stop recording to change quality');
@@ -833,35 +859,117 @@
   }));
 
   // ---------- camera ----------
+  // ---------- camera: get it reliably, keep it, and recover if another app grabs it ----------
+  let camWanted = false, retryTimer = null, retryCount = 0, releasing = false;
+  const camConstraints = () => {
+    const id = $('camSelect').value, dev = id ? { deviceId:{ exact:id } } : {};
+    return [
+      { ...dev, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} },
+      { ...dev },                                  // camera may not support 720p
+      {}                                           // any camera at all
+    ];
+  };
+  async function openCamera(){
+    let lastErr;
+    for (const c of camConstraints()){
+      try{ return await navigator.mediaDevices.getUserMedia({ video:c, audio:false }); }
+      catch(e){ lastErr = e; if (e.name === 'NotAllowedError' || e.name === 'SecurityError') break; }
+    }
+    // the chosen camera is busy — try any other camera on this computer
+    if (lastErr && (lastErr.name === 'NotReadableError' || lastErr.name === 'AbortError' || lastErr.name === 'TrackStartError')){
+      try{
+        const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== $('camSelect').value);
+        for (const d of cams){
+          try{ const st = await navigator.mediaDevices.getUserMedia({ video:{ deviceId:{ exact:d.deviceId } }, audio:false }); toast('Your main camera was busy, so another camera was used'); return st; }catch(e){}
+        }
+      }catch(e){}
+    }
+    throw lastErr || new Error('No camera');
+  }
   async function startCamera(){
     camStream?.getTracks().forEach(t => t.stop());
+    camWanted = true; clearTimeout(retryTimer);
     $('camState').textContent = 'Starting…';
     try{
-      const id = $('camSelect').value;
-      camStream = await navigator.mediaDevices.getUserMedia({
-        video:{ deviceId: id ? {exact:id} : undefined, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false
-      });
+      camStream = await openCamera();
       ['camPreview','camStage','srcCam'].forEach(v => { $(v).srcObject = camStream; $(v).play().catch(()=>{}); });
-      camStream.getVideoTracks()[0].addEventListener('ended', () => { camStream = null; renderCam(); });
-      listDevices();
+      const track = camStream.getVideoTracks()[0];
+      track.addEventListener('ended', () => {
+        // unplugged, put to sleep, or taken by the system — reconnect if reserved
+        if (releasing) return;
+        camStream = null; renderCam(); renderSettings();
+        if (S.reserve === 'on' && camWanted){ showCamHelp('lost'); scheduleRetry(1500); }
+      });
+      track.addEventListener('mute', () => { if (!releasing) $('camState').textContent = 'Camera paused by your computer…'; });
+      track.addEventListener('unmute', () => renderCam());
+      if (retryCount) toast('Camera connected');
+      retryCount = 0; hideCamHelp(); listDevices();
     }catch(e){
       camStream = null;
-      notice('Couldn\'t open your camera. Please allow camera access for this site, and close other apps using it.');
+      handleCamError(e);
     }
     renderCam(); renderSettings();
     return !!camStream;
   }
   function stopCamera(){
+    camWanted = false; clearTimeout(retryTimer); hideCamHelp();
+    releasing = true;
     camStream?.getTracks().forEach(t => t.stop()); camStream = null;
+    releasing = false;
     ['camPreview','camStage','srcCam'].forEach(v => $(v).srcObject = null);
     renderCam(); renderSettings();
   }
+
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  function handleCamError(e){
+    const n = e?.name || '';
+    if (n === 'NotAllowedError' || n === 'SecurityError') showCamHelp('blocked');
+    else if (n === 'NotFoundError' || n === 'OverconstrainedError' || n === 'DevicesNotFoundError') showCamHelp('none');
+    else { showCamHelp('busy'); scheduleRetry(3000); }
+  }
+  function showCamHelp(kind){
+    const apps = '<ul><li><b>Video calls:</b> Zoom, Microsoft Teams, Google Meet, Skype, Messenger, Viber, WhatsApp</li><li><b>Camera apps:</b> Windows Camera, FaceTime, Photo Booth, OBS, snapping or filter apps</li><li><b>Other browser tabs</b> or another browser (Edge, Firefox) using the camera</li></ul>';
+    const os = isMac
+      ? '<div class="os">On a Mac, the app using the camera shows a green dot in the top menu bar — click it (Control Center) to see which app it is, then quit that app (⌘Q).</div>'
+      : '<div class="os">On Windows, open <b>Settings → Privacy &amp; security → Camera</b> and look for an app marked "Currently in use", then close it (also check the system tray near the clock).</div>';
+    const T = {
+      busy:  ['Your camera is being used by another app', '<div>Only one app can use the camera at a time on most computers. Close any of these if they\'re open:</div>' + apps + os],
+      lost:  ['The camera was disconnected', '<div>Another app may have taken it, or it was unplugged or went to sleep. Reconnecting as soon as it\'s free…</div>' + apps],
+      blocked:['Camera access is blocked for this site', '<div>Click the <b>camera or lock icon</b> at the left of the address bar, set <b>Camera → Allow</b>, then press Try again.</div>' + (isMac ? '<div class="os">Also check <b>System Settings → Privacy &amp; Security → Camera</b> and switch on your browser.</div>' : '<div class="os">Also check <b>Settings → Privacy &amp; security → Camera</b> and make sure "Let desktop apps access your camera" and your browser are switched on.</div>')],
+      none:  ['No camera was found', '<div>Plug in a webcam (or open your laptop lid), then press Try again. If you have several cameras, pick one from the list above.</div>']
+    }[kind];
+    $('camHelpTitle').textContent = T[0]; $('camHelpBody').innerHTML = T[1];
+    $('camWait').style.display = (kind === 'busy' || kind === 'lost') ? '' : 'none';
+    $('camHelp').classList.add('show');
+  }
+  function hideCamHelp(){ $('camHelp').classList.remove('show'); clearTimeout(retryTimer); clearInterval(countdownIv); }
+  let countdownIv = null;
+  function scheduleRetry(ms){
+    clearTimeout(retryTimer); clearInterval(countdownIv);
+    if (!camWanted || !usesCam() && S.reserve !== 'on') return;
+    if (retryCount >= 60){ $('camWaitTxt').textContent = 'Stopped checking — press Try again when the camera is free.'; return; }
+    let left = Math.ceil(ms/1000);
+    $('camWaitTxt').textContent = `Checking again in ${left}s…`;
+    countdownIv = setInterval(() => { left--; if (left > 0) $('camWaitTxt').textContent = `Checking again in ${left}s…`; }, 1000);
+    retryTimer = setTimeout(() => { clearInterval(countdownIv); retryCount++; $('camWaitTxt').textContent = 'Checking…'; startCamera(); }, ms);
+  }
+  $('camRetry').onclick = () => { retryCount = 0; startCamera(); };
+  // when you come back to this tab, try straight away
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && camWanted && !camStream && $('camHelp').classList.contains('show')){ retryCount = 0; startCamera(); }
+  });
+  // a camera plugged in later reconnects automatically
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => { if (camWanted && !camStream){ retryCount = 0; startCamera(); } });
+
   function renderCam(){
     const on = !!camStream;
     $('camSec').classList.toggle('on', on);
     $('camState').textContent = on ? (camStream.getVideoTracks()[0].label || 'Camera on').replace(/\s*\(.*\)$/,'') : 'Off — turn on to preview';
     $('camBtn').textContent = on ? 'Turn off' : 'Turn on';
+    // show a "reserved" pill when the camera is held while a non-camera mode is selected
+    $('camPill').classList.toggle('show', on && !usesCam());
   }
+  $('camPill').onclick = () => { stopCamera(); toast('Camera released for other apps'); };
   $('camBtn').onclick = () => {
     if (camStream && recorder && recorder.state !== 'inactive') return toast('Camera is in use by the recording');
     camStream ? stopCamera() : startCamera();
