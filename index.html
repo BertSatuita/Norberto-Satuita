@@ -1,0 +1,1771 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clipcast Recorder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f5f3ef; --bg2:#ece8e1; --card:#ffffff; --ink:#1b1917; --muted:#77706a; --line:#e7e2db;
+    --soft:#f4f1ec; --accent:#ef4b3f; --accent2:#ff7a59; --accent-soft:rgba(239,75,63,.12);
+    --ok:#2e9b62; --stage:#16141a; --shadow:0 1px 2px rgba(30,20,10,.04),0 12px 32px rgba(30,20,10,.07);
+    --radius:20px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f0e10; --bg2:#17161a; --card:#1a191d; --ink:#f3f0ec; --muted:#9a948e; --line:#2a282d;
+      --soft:#222026; --stage:#0a090c; --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f0e10; --bg2:#17161a; --card:#1a191d; --ink:#f3f0ec; --muted:#9a948e; --line:#2a282d;
+    --soft:#222026; --stage:#0a090c; --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,sans-serif;line-height:1.5;min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  svg{flex-shrink:0}
+
+  /* ---------- Background ---------- */
+  :root{ --b1:#ff7a59; --b2:#ef4b3f; --b3:#ffc9a8; --b4:#b49cff; --blob-op:.55; --grid:rgba(60,40,20,.07) }
+  :root[data-bg="ocean"]{ --b1:#4f9dff; --b2:#2dd4bf; --b3:#bfe3ff; --b4:#8b7bff }
+  :root[data-bg="forest"]{ --b1:#34c38f; --b2:#a3d977; --b3:#d9f2c4; --b4:#2ba8a0 }
+  :root[data-bg="dusk"]{ --b1:#c06cff; --b2:#ff6fa8; --b3:#ffd1e3; --b4:#6d7cff }
+  :root[data-bg="plain"]{ --blob-op:0 }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --blob-op:.32; --grid:rgba(255,255,255,.05) } }
+  :root[data-theme="dark"]{ --blob-op:.32; --grid:rgba(255,255,255,.05) }
+  :root[data-theme="dark"][data-bg="plain"]{ --blob-op:0 }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"])[data-bg="plain"]{ --blob-op:0 } }
+  .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg)}
+  .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:var(--blob-op);will-change:transform;transition:background 1s,opacity .6s}
+  .blob.b1{width:52vmax;height:52vmax;left:-14vmax;top:-18vmax;background:var(--b1);animation:drift1 28s ease-in-out infinite alternate}
+  .blob.b2{width:44vmax;height:44vmax;right:-16vmax;top:-10vmax;background:var(--b2);animation:drift2 34s ease-in-out infinite alternate}
+  .blob.b3{width:46vmax;height:46vmax;left:20vmax;top:38vh;background:var(--b3);animation:drift3 40s ease-in-out infinite alternate}
+  .blob.b4{width:36vmax;height:36vmax;right:-8vmax;bottom:-16vmax;background:var(--b4);animation:drift1 32s ease-in-out infinite alternate-reverse}
+  @keyframes drift1{to{transform:translate(9vmax,7vmax) scale(1.12)}}
+  @keyframes drift2{to{transform:translate(-10vmax,9vmax) scale(.9)}}
+  @keyframes drift3{to{transform:translate(-8vmax,-10vmax) scale(1.15)}}
+  .bg .dots{position:absolute;inset:0;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:26px 26px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 80%);mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 80%)}
+  .bg .grain{position:absolute;inset:-50%;opacity:.06;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  @media (prefers-reduced-motion: reduce){ .blob{animation:none!important} }
+
+  /* background picker */
+  .bgpick{position:relative}
+  .bgmenu{position:absolute;right:0;top:46px;z-index:70;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:12px;display:none;width:220px}
+  .bgmenu.show{display:block}
+  .bgmenu h4{margin:0 2px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .sw{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .sw button{aspect-ratio:1;border-radius:12px;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  .sw button.sel{border-color:var(--ink)}
+  .sw button[data-bg="sunset"]{background:linear-gradient(135deg,#ff7a59,#ef4b3f 55%,#b49cff)}
+  .sw button[data-bg="ocean"]{background:linear-gradient(135deg,#4f9dff,#2dd4bf 55%,#8b7bff)}
+  .sw button[data-bg="forest"]{background:linear-gradient(135deg,#34c38f,#a3d977 55%,#2ba8a0)}
+  .sw button[data-bg="dusk"]{background:linear-gradient(135deg,#c06cff,#ff6fa8 55%,#6d7cff)}
+  .sw button[data-bg="plain"]{background:var(--soft)}
+  .bgmenu p{margin:10px 2px 0;font-size:11.5px;color:var(--muted)}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 120px}
+
+  /* Nav */
+  nav{display:flex;align-items:center;justify-content:space-between;padding:6px 0 26px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.02em}
+  .mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;box-shadow:0 6px 16px rgba(239,75,63,.35)}
+  .mark i{width:12px;height:12px;border-radius:50%;background:#fff;display:block}
+  .navr{display:flex;gap:8px;align-items:center}
+  .pill{font-size:12px;font-weight:600;color:var(--muted);background:color-mix(in srgb, var(--card) 75%, transparent);backdrop-filter:blur(10px);border:1px solid var(--line);padding:6px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .pill .g{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+  .iconbtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+  .iconbtn:hover{background:var(--soft)}
+
+  /* Hero */
+  .hero{margin-bottom:22px}
+  .hero h1{font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0 0 8px;letter-spacing:-.03em;font-weight:800}
+  .hero h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{margin:0;color:var(--muted);font-size:15.5px;max-width:560px}
+
+  .notice{display:none;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;background:var(--accent-soft);color:var(--accent);font-size:14px;font-weight:500;margin-bottom:16px;border:1px solid rgba(239,75,63,.25)}
+  .notice.show{display:flex}
+
+  /* Layout */
+  .studio{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+  @media (max-width:900px){.studio{grid-template-columns:1fr}}
+  .card{background:color-mix(in srgb, var(--card) 80%, transparent);border:1px solid color-mix(in srgb, var(--line) 85%, transparent);border-radius:var(--radius);box-shadow:var(--shadow);
+    -webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+  @supports not (background:color-mix(in srgb, red 50%, transparent)){ .card{background:var(--card)} }
+
+  /* Stage */
+  .stage{padding:12px}
+  .screen{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:var(--stage);
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 0);background-size:22px 22px}
+  .screen video,.screen canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none}
+  .screen[data-view="screen"] #liveVideo,.screen[data-view="mix"] #mixCanvas,
+  .screen[data-view="cam"] #camStage,.screen[data-view="review"] #reviewVideo{display:block}
+  .screen[data-view="mix"] #mixCanvas{width:100%;height:100%;object-fit:contain}
+  #camStage{object-fit:cover}
+  .mirror{transform:scaleX(-1)}
+  .screen:not([data-view="idle"]) .empty{display:none}
+  .src{position:fixed;left:-10000px;top:0;width:4px;height:4px;opacity:0;pointer-events:none}
+  .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#cfc9c3;text-align:center;padding:20px}
+  .mock{width:min(300px,60%);aspect-ratio:16/10;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));position:relative;padding:10px}
+  .mock .b{height:6px;border-radius:4px;background:rgba(255,255,255,.14);margin-bottom:8px}
+  .mock .b:nth-child(2){width:70%}.mock .b:nth-child(3){width:45%}
+  .mock .face{position:absolute;right:-14px;bottom:-14px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:3px solid var(--stage);display:grid;place-items:center}
+  .empty h3{margin:6px 0 0;font-size:17px;color:#fff;font-weight:700}
+  .empty p{margin:0;font-size:13.5px;color:#9e9892;max-width:340px}
+  .badge{position:absolute;top:12px;left:12px;display:none;align-items:center;gap:8px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);color:#fff;font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:999px;z-index:2}
+  .screen.live .badge{display:inline-flex}
+  .screen.badge-r .badge{left:auto;right:12px}
+  .badge i{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 1s infinite}
+  .paused .badge i{animation:none;background:#bbb}
+  @keyframes blink{50%{opacity:.25}}
+  .stagebar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 6px 4px;flex-wrap:wrap}
+  .stagebar .meta{font-size:13px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+  .stagebar .meta b{color:var(--ink);font-weight:600}
+
+  /* Review actions */
+  .review-actions{display:none;gap:10px;padding:10px 6px 4px;flex-wrap:wrap;align-items:center}
+  .review-actions.show{display:flex}
+  .name{flex:1;min-width:180px;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:inherit;font-size:14px;font-weight:500}
+  .name:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+
+  /* Panel */
+  .panel{padding:18px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 4px 12px;font-weight:700}
+  .opt{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--soft);margin-bottom:10px;transition:.15s}
+  .opt.on{border-color:rgba(239,75,63,.35);background:linear-gradient(0deg,var(--accent-soft),var(--accent-soft)),var(--card)}
+  .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);color:var(--muted)}
+  .opt.on .ico{color:var(--accent);border-color:rgba(239,75,63,.3)}
+  .opt .txt{flex:1;min-width:0}
+  .opt .txt b{display:block;font-size:14px;font-weight:600}
+  .opt .txt span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .switch{position:relative;width:42px;height:24px;flex-shrink:0}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .switch s{position:absolute;inset:0;border-radius:999px;background:var(--line);cursor:pointer;transition:.2s}
+  .switch s::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s}
+  .switch input:checked + s{background:var(--accent)}
+  .switch input:checked + s::after{transform:translateX(18px)}
+  .switch input:focus-visible + s{outline:2px solid var(--accent);outline-offset:2px}
+  select{width:100%;margin:-2px 0 10px;padding:9px 12px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:13px;display:none}
+  select.show{display:block}
+
+  .mode{margin-bottom:14px}
+  #modeSeg{grid-template-columns:1fr 1fr}
+  #modeSeg button{flex-direction:row;justify-content:center;gap:7px;padding:10px 6px}
+  .guide{display:none;padding:14px;border-radius:14px;border:1px solid rgba(239,75,63,.3);background:linear-gradient(0deg,var(--accent-soft),var(--accent-soft)),var(--card);margin-bottom:16px;font-size:12.5px;line-height:1.5}
+  .guide.show{display:block}
+  .guide > b{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px}
+  .guide ol{margin:0;padding-left:18px;color:var(--ink)}
+  .guide li{margin:5px 0}
+  .guide li::marker{color:var(--accent);font-weight:700}
+  .mixer{display:none;padding:10px 12px 4px;border:1px solid var(--line);border-radius:14px;background:var(--soft);margin:-2px 0 10px}
+  .mixer.show{display:block}
+  .mixer label{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px}
+  .mixer input{grid-column:1 / -1;width:100%;accent-color:var(--accent)}
+  .mixer em{font-style:normal;color:var(--ink);font-variant-numeric:tabular-nums}
+  .marks{display:none;width:100%;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);font-weight:600}
+  .marks.show{display:flex}
+  .chip{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+  .camsec{display:none;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--soft);margin-bottom:16px}
+  .camsec.show{display:block}
+  .camtop{display:flex;align-items:center;gap:12px}
+  .camthumb{position:relative;width:64px;height:64px;flex-shrink:0}
+  #camPreview{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#000;border:3px solid var(--accent);box-shadow:0 6px 16px rgba(239,75,63,.25);display:block}
+  #camPreview.sq{border-radius:16px}
+  .camoff{position:absolute;inset:0;border-radius:50%;background:var(--card);border:2px dashed var(--line);display:grid;place-items:center;color:var(--muted)}
+  .camsec.on .camoff{display:none}
+  .camtop .tt{flex:1;min-width:0}
+  .camtop .tt b{display:block;font-size:14px;font-weight:600}
+  .camtop .tt span{display:block;font-size:12px;color:var(--muted)}
+  .camsec select{margin:10px 0 0}
+  .ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:12.5px;font-weight:600;color:var(--muted)}
+  .ctl.hide{display:none}
+  .mseg{display:flex;gap:3px;padding:3px;border-radius:10px;background:var(--card);border:1px solid var(--line)}
+  .mseg button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:12px;min-width:30px;height:26px;padding:0 8px;border-radius:7px;cursor:pointer;display:grid;place-items:center}
+  .mseg button:hover{color:var(--ink)}
+  .mseg button.sel{background:var(--accent);color:#fff}
+  .corner{width:30px;padding:0!important;position:relative}
+  .corner i{position:absolute;width:7px;height:7px;border-radius:50%;background:currentColor}
+  .corner[data-v="tl"] i{left:6px;top:5px}.corner[data-v="tr"] i{right:6px;top:5px}
+  .corner[data-v="bl"] i{left:6px;bottom:5px}.corner[data-v="br"] i{right:6px;bottom:5px}
+  .corner::before{content:"";position:absolute;inset:4px 4px;border:1.5px solid currentColor;border-radius:4px;opacity:.45}
+  .mock .face{transition:.25s}
+  .mock[data-pos="tl"] .face{left:-14px;top:-14px;right:auto;bottom:auto}
+  .mock[data-pos="tr"] .face{right:-14px;top:-14px;bottom:auto}
+  .mock[data-pos="bl"] .face{left:-14px;bottom:-14px;right:auto}
+  .mock.sq .face{border-radius:16px}
+  .mock.camonly{display:grid;place-items:center}
+  .mock.camonly .b{display:none}
+  .mock.camonly .face{position:static;width:74px;height:74px}
+  .mock.screenonly .face{display:none}
+
+  /* Buttons */
+  button{font:inherit}
+  .btn{font-weight:700;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:10px 16px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+  .btn.primary{background:var(--ink);color:var(--card);border-color:var(--ink)}
+  .btn.primary:hover{opacity:.9;background:var(--ink)}
+  .record{width:100%;margin-top:6px;padding:16px;border:0;border-radius:16px;cursor:pointer;color:#fff;font-weight:800;font-size:16px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 24px rgba(239,75,63,.35);display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s}
+  .record:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(239,75,63,.4)}
+  .record:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .record .rd{width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.3)}
+  .tip{font-size:12px;color:var(--muted);text-align:center;margin:12px 0 0}
+
+  /* Quality */
+  .quality{margin:16px 0 0;padding-top:16px;border-top:1px solid var(--line)}
+  #qualSeg button small{display:block;font-weight:500;font-size:10.5px;opacity:.75;margin-top:1px}
+  #qualSeg button b{font-size:12.5px}
+  .quality .ctl{margin-top:12px}
+  .est{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:9px 12px;border-radius:11px;background:var(--soft);border:1px solid var(--line);font-size:12.5px;color:var(--muted);font-weight:600}
+  .est b{color:var(--ink);font-size:13.5px}
+
+  /* Save location */
+  .saveto{margin:16px 0 14px;padding-top:16px;border-top:1px solid var(--line)}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:13px;background:var(--soft);border:1px solid var(--line)}
+  .seg button{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:12px;padding:9px 4px;border-radius:9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;line-height:1.2}
+  .seg button:hover{color:var(--ink)}
+  .seg button.sel{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .seg button.sel svg{color:var(--accent)}
+  .seg button:disabled{opacity:.4;cursor:not-allowed}
+  .folder{display:none;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+  .folder.show{display:flex}
+  .folder .fi{width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+  .folder .ft{flex:1;min-width:0}
+  .folder .ft b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .folder .ft small{display:block;font-size:11.5px;color:var(--muted)}
+  .folder .ft small.warn{color:var(--accent);font-weight:600}
+  .savehint{font-size:11.5px;color:var(--muted);margin:8px 2px 0;line-height:1.45}
+  .savedinfo{width:100%;font-size:12.5px;color:var(--muted);margin:2px 2px 0;display:flex;align-items:center;gap:6px}
+  .savedinfo.ok{color:var(--ok);font-weight:600}
+  kbd{font-family:inherit;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;border:1px solid var(--line);background:var(--soft)}
+
+  /* Library */
+  .lib{margin-top:28px}
+  .libhead{display:flex;align-items:end;justify-content:space-between;margin-bottom:14px;gap:10px}
+  .libhead h2{margin:0;font-size:20px;letter-spacing:-.02em;font-weight:800}
+  .libhead p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .clip{overflow:hidden;cursor:pointer;transition:.15s}
+  .clip:hover{transform:translateY(-2px)}
+  .clip.active{outline:2px solid var(--accent);outline-offset:2px}
+  .thumb{position:relative;aspect-ratio:16/9;background:#000}
+  .thumb video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .thumb .dur{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11.5px;font-weight:700;padding:3px 7px;border-radius:7px}
+  .clipbody{padding:12px 14px;display:flex;align-items:center;gap:8px}
+  .clipbody .t{flex:1;min-width:0}
+  .clipbody b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .clipbody small{color:var(--muted);font-size:12px}
+  .mini{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--muted);display:grid;place-items:center;cursor:pointer}
+  .mini:hover{color:var(--ink);background:var(--soft)}
+  .libempty{background:color-mix(in srgb, var(--card) 45%, transparent);border:1.5px dashed var(--line);border-radius:var(--radius);padding:34px 16px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* Dock */
+  .dock{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);background:rgba(22,20,24,.92);backdrop-filter:blur(14px);color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:8px;display:flex;align-items:center;gap:6px;box-shadow:0 20px 50px rgba(0,0,0,.4);z-index:40;transition:transform .35s cubic-bezier(.2,.9,.3,1.2)}
+  .dock.show{transform:translate(-50%,0)}
+  .dock .time{display:flex;align-items:center;gap:10px;padding:0 12px 0 10px;font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;min-width:96px}
+  .dock .time i{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:blink 1s infinite}
+  .dock.paused .time i{animation:none;background:#999}
+  .meters{display:flex;gap:10px;padding:0 10px;border-left:1px solid rgba(255,255,255,.1);align-items:center}
+  .mtr{display:flex;align-items:center;gap:6px;color:#aaa}
+  .mtr.off{display:none}
+  .mtr.muted{color:var(--accent)}
+  .meter{display:flex;gap:2px;align-items:end;height:20px}
+  .meter span{width:3px;border-radius:2px;background:rgba(255,255,255,.25);height:4px;transition:height .08s}
+  .meter span.lit{background:#5be39a}
+  .dbtn{height:42px;padding:0 14px;border-radius:13px;border:0;background:rgba(255,255,255,.08);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .dbtn:hover{background:rgba(255,255,255,.15)}
+  .dbtn.stop{background:var(--accent)}
+  .dbtn.stop:hover{filter:brightness(1.08);background:var(--accent)}
+  .dbtn.ghost{background:transparent;width:42px;padding:0;justify-content:center;color:#bbb}
+  .dbtn.muted{background:rgba(239,75,63,.25);color:#ffb3ad}
+  .dbtn.hide{display:none}
+  @media (max-width:640px){.meters{display:none}.dbtn .lbl{display:none}}
+
+  /* Countdown */
+  .count{position:fixed;inset:0;background:rgba(10,9,12,.6);backdrop-filter:blur(6px);display:none;place-items:center;z-index:50}
+  .count.show{display:grid}
+  .ring{width:170px;height:170px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:76px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 0 14px rgba(239,75,63,.2),0 0 0 30px rgba(239,75,63,.08);animation:pop 1s infinite}
+  @keyframes pop{0%{transform:scale(.85)}30%{transform:scale(1.04)}100%{transform:scale(1)}}
+  .count small{display:block;text-align:center;color:#ddd;margin-top:26px;font-size:14px}
+
+  .toast{position:fixed;top:20px;left:50%;transform:translate(-50%,-150%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:60;transition:transform .3s}
+  .toast.show{transform:translate(-50%,0)}
+  /* Converter */
+  .conv{margin-top:36px}
+  .convcard{padding:18px}
+  .convgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px}
+  @media (max-width:860px){.convgrid{grid-template-columns:1fr}}
+  .cvlabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:18px 2px 8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .cvlabel:first-child{margin-top:2px}
+  .cvlabel small{text-transform:none;letter-spacing:0;font-weight:500}
+  .drop{border:1.5px dashed var(--line);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;background:var(--soft);transition:.15s;flex-wrap:wrap}
+  .drop.over{border-color:var(--accent);background:var(--accent-soft)}
+  .drop .di{width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent)}
+  .drop .dt{flex:1;min-width:150px;font-size:13px;color:var(--muted)}
+  .drop .dt b{display:block;color:var(--ink);font-size:14px}
+  #cvSrc{display:block;margin:10px 0 0}
+  .srcinfo{display:none;margin-top:8px;font-size:12.5px;color:var(--muted)}
+  .srcinfo.show{display:block}
+  .srcinfo b{color:var(--ink)}
+  .fmtgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  @media (max-width:520px){.fmtgrid{grid-template-columns:repeat(2,1fr)}}
+  .fmt{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px;cursor:pointer;text-align:left;color:var(--ink);font:inherit;transition:.15s;position:relative}
+  .fmt:hover{border-color:var(--muted)}
+  .fmt b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+  .fmt span{display:block;font-size:11px;color:var(--muted);line-height:1.3;margin-top:1px}
+  .fmt i{position:absolute;top:8px;right:8px;font-style:normal;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .fmt.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .fmt.sel b{color:var(--accent)}
+  .cvopts .ctl{margin-top:10px}
+  .cvopts .ctl.hide,.cvhide{display:none!important}
+  .trim{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);font-weight:600}
+  .tin{width:92px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:13px;font-variant-numeric:tabular-nums}
+  .tin:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .cvsw{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;margin-top:12px;cursor:pointer}
+  .cvhint{font-size:12px;color:var(--muted);margin:12px 2px 0;line-height:1.45}
+  .cvright{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .status{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--soft)}
+  .status .st{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14.5px}
+  .status .st .sic{width:34px;height:34px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);flex-shrink:0}
+  .status p{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+  .status.err .st{color:var(--accent)}
+  .status.ok .st .sic{color:var(--ok)}
+  .bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:12px 0 0;display:none}
+  .status.run .bar{display:block}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s}
+  .status.indet .bar i{width:35%!important;animation:slide 1.2s infinite ease-in-out}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+  .cvbtns{display:flex;gap:8px;margin-top:12px}
+  .cvbtns .record{margin:0;flex:1}
+  .outlist{display:flex;flex-direction:column;gap:10px}
+  .outitem{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+  .outitem .pv{background:#000;display:grid;place-items:center;max-height:220px;overflow:hidden}
+  .outitem .pv video,.outitem .pv img{max-width:100%;max-height:220px;display:block}
+  .outitem .pv.aud{background:var(--soft);padding:12px}
+  .outitem .pv.aud audio{width:100%}
+  .outitem .pv.icon{height:90px;color:#cfc9c3;font-weight:800;font-size:22px;letter-spacing:.04em}
+  .outbody{display:flex;align-items:center;gap:8px;padding:10px 12px}
+  .outbody .t{flex:1;min-width:0}
+  .outbody b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .outbody small{font-size:12px;color:var(--muted)}
+  .outbody small em{font-style:normal;color:var(--ok);font-weight:700}
+  footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span><div class="dots"></div><div class="grain"></div></div>
+<div class="wrap">
+  <nav>
+    <div class="brand"><div class="mark"><i></i></div>Clipcast</div>
+    <div class="navr">
+      <span class="pill"><span class="g"></span>Private · stays on your device</span>
+      <div class="bgpick">
+        <button class="iconbtn" id="bgBtn" title="Background" aria-label="Change background" aria-expanded="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.4 3.4A2 2 0 0 1 12 22z"/><circle cx="7.5" cy="10.5" r="1.2" fill="currentColor"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/><circle cx="16.5" cy="10.5" r="1.2" fill="currentColor"/></svg>
+        </button>
+        <div class="bgmenu" id="bgMenu" role="dialog" aria-label="Background">
+          <h4>Background</h4>
+          <div class="sw">
+            <button data-bg="sunset" title="Sunset" aria-label="Sunset"></button>
+            <button data-bg="ocean" title="Ocean" aria-label="Ocean"></button>
+            <button data-bg="forest" title="Forest" aria-label="Forest"></button>
+            <button data-bg="dusk" title="Dusk" aria-label="Dusk"></button>
+            <button data-bg="plain" title="Plain" aria-label="Plain"></button>
+          </div>
+          <p id="bgName">Sunset</p>
+        </div>
+      </div>
+      <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Record your screen and face, <span>share your story.</span></h1>
+    <p>Capture your screen, voice and face in one take. No installs, no sign-up — just press record.</p>
+  </div>
+
+  <div class="notice" id="notice">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <span id="noticeText"></span>
+  </div>
+
+  <div class="studio">
+    <!-- Stage -->
+    <section class="card stage">
+      <div class="screen" id="screen" data-view="idle">
+        <div class="badge"><i></i><span id="badgeText">Recording</span></div>
+        <video id="liveVideo" autoplay muted playsinline></video>
+        <canvas id="mixCanvas"></canvas>
+        <video id="camStage" autoplay muted playsinline></video>
+        <video id="reviewVideo" controls playsinline></video>
+        <div class="empty">
+          <div class="mock" id="mock"><div class="b"></div><div class="b"></div><div class="b"></div>
+            <div class="face"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+          </div>
+          <h3>Ready when you are</h3>
+          <p id="emptyText">Choose your options on the right, then hit record. A live preview will appear here.</p>
+        </div>
+      </div>
+      <div class="stagebar" id="stageBar">
+        <div class="meta"><span>Quality <b id="qualLabel">1080p · 30fps</b></span><span>Tip <b>Keep this tab open while recording</b></span><span>Format <b id="fmtLabel">—</b></span><span>Size <b id="sizeLabel">~2.2 GB / hour</b></span></div>
+      </div>
+      <div class="review-actions" id="reviewActions">
+        <input class="name" id="fileName" aria-label="File name">
+        <button class="btn primary" id="downloadBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span id="saveLbl">Download</span>
+        </button>
+        <button class="btn" id="newBtn">New recording</button>
+        <div class="savedinfo" id="savedInfo"></div>
+        <div class="marks" id="marks"></div>
+      </div>
+    </section>
+
+    <!-- Panel -->
+    <aside class="card panel" id="panel">
+      <div class="mode">
+        <h2>Recording mode</h2>
+        <div class="seg" id="modeSeg" role="radiogroup" aria-label="Recording mode">
+          <button data-mode="both" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><circle cx="17" cy="13" r="3.2"/><path d="M8 21h8"/></svg>Screen + Cam
+          </button>
+          <button data-mode="screen" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Screen only
+          </button>
+          <button data-mode="cam" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Camera only
+          </button>
+          <button data-mode="meet" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="5" height="7" rx="2"/><rect x="17" y="14" width="5" height="7" rx="2"/></svg>Meeting / Webinar
+          </button>
+        </div>
+      </div>
+
+      <div class="camsec" id="camSec">
+        <div class="camtop">
+          <div class="camthumb">
+            <video id="camPreview" class="mirror" autoplay muted playsinline></video>
+            <div class="camoff"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+          </div>
+          <div class="tt"><b>Camera</b><span id="camState">Off — turn on to preview</span></div>
+          <button class="btn sm" id="camBtn">Turn on</button>
+        </div>
+        <select id="camSelect" aria-label="Camera"><option value="">Default camera</option></select>
+        <div class="ctl" id="ctlPos"><span>Position</span>
+          <div class="mseg" data-key="pos">
+            <button class="corner" data-v="tl" title="Top left" aria-label="Top left"><i></i></button>
+            <button class="corner" data-v="tr" title="Top right" aria-label="Top right"><i></i></button>
+            <button class="corner" data-v="bl" title="Bottom left" aria-label="Bottom left"><i></i></button>
+            <button class="corner" data-v="br" title="Bottom right" aria-label="Bottom right"><i></i></button>
+          </div>
+        </div>
+        <div class="ctl" id="ctlSize"><span>Size</span>
+          <div class="mseg" data-key="size"><button data-v="s">S</button><button data-v="m">M</button><button data-v="l">L</button></div>
+        </div>
+        <div class="ctl" id="ctlShape"><span>Shape</span>
+          <div class="mseg" data-key="shape"><button data-v="circle">Circle</button><button data-v="square">Rounded</button></div>
+        </div>
+        <div class="ctl"><span>Mirror my image</span>
+          <div class="mseg" data-key="mirror"><button data-v="on">On</button><button data-v="off">Off</button></div>
+        </div>
+      </div>
+
+      <div class="guide" id="meetGuide">
+        <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Recording a meeting or webinar</b>
+        <ol>
+          <li><b>Meeting in your browser</b> (Google Meet, Zoom or Teams on the web): pick the <b>Chrome tab</b> with the meeting and switch on <b>"Also share tab audio"</b>.</li>
+          <li><b>Zoom or Teams app on Windows</b>: pick <b>Entire screen</b> and switch on <b>"Also share system audio"</b>.</li>
+          <li><b>On a Mac</b>, only tab sound can be captured, so join the meeting in your browser.</li>
+          <li>Wear <b>headphones</b> so speakers' voices aren't picked up twice by your mic.</li>
+          <li>For long sessions, set <b>Save recordings to → My folder</b> so the video is written to disk while it records.</li>
+        </ol>
+      </div>
+
+      <h2>Audio &amp; extras</h2>
+
+      <div class="opt" data-for="optMic">
+        <div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></div>
+        <div class="txt"><b>Microphone</b><span id="micDesc">Record your voice</span></div>
+        <label class="switch"><input type="checkbox" id="optMic" checked><s></s></label>
+      </div>
+      <select id="micSelect" aria-label="Microphone"><option value="">Default microphone</option></select>
+      <div class="mixer" id="mixer">
+        <label><span id="volSysLbl">Screen sound volume</span><em id="volSysV">100%</em><input type="range" id="volSys" min="0" max="200" step="5" value="100" aria-label="Screen sound volume"></label>
+        <label><span>Your voice volume</span><em id="volMicV">100%</em><input type="range" id="volMic" min="0" max="200" step="5" value="100" aria-label="Your voice volume"></label>
+      </div>
+
+      <div class="opt" data-for="optSys" id="sysOpt">
+        <div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></div>
+        <div class="txt"><b id="sysTitle">Computer audio</b><span id="sysDesc">Sound playing on screen</span></div>
+        <label class="switch"><input type="checkbox" id="optSys" checked><s></s></label>
+      </div>
+
+      <div class="opt" data-for="optCount">
+        <div class="ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
+        <div class="txt"><b>Countdown</b><span>3 seconds to get ready</span></div>
+        <label class="switch"><input type="checkbox" id="optCount" checked><s></s></label>
+      </div>
+
+      <div class="quality">
+        <h2>Quality &amp; file size</h2>
+        <div class="seg" id="qualSeg" role="radiogroup" aria-label="Quality">
+          <button data-q="small" role="radio"><b>Compact</b><small>Smallest file</small></button>
+          <button data-q="balanced" role="radio"><b>Balanced</b><small>Recommended</small></button>
+          <button data-q="high" role="radio"><b>High</b><small>Sharpest</small></button>
+        </div>
+        <div class="ctl"><span>File type</span>
+          <div class="mseg" data-key="format"><button data-v="mp4">MP4</button><button data-v="webm">WebM · smaller</button></div>
+        </div>
+        <div class="est"><span>File size</span><b id="estLabel">—</b></div>
+        <p class="savehint" id="qualHint"></p>
+      </div>
+
+      <div class="saveto">
+        <h2>Save recordings to</h2>
+        <div class="seg" id="saveSeg" role="radiogroup" aria-label="Save location">
+          <button data-mode="downloads" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Downloads
+          </button>
+          <button data-mode="ask" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>Ask each time
+          </button>
+          <button data-mode="folder" role="radio">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>My folder
+          </button>
+        </div>
+        <div class="folder" id="folderBox">
+          <div class="fi"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg></div>
+          <div class="ft"><b id="folderName">No folder chosen</b><small id="folderState">Pick where videos go</small></div>
+          <button class="btn sm" id="changeFolder">Change</button>
+        </div>
+        <p class="savehint" id="saveHint"></p>
+      </div>
+
+      <button class="record" id="startBtn"><span class="rd"></span>Start recording</button>
+      <p class="tip">Best in Chrome or Edge on a computer · <kbd>Alt</kbd>+<kbd>S</kbd> stop · <kbd>Alt</kbd>+<kbd>M</kbd> mute · <kbd>Alt</kbd>+<kbd>B</kbd> bookmark</p>
+    </aside>
+  </div>
+
+  <!-- Library -->
+  <section class="lib">
+    <div class="libhead">
+      <div><h2>Your recordings</h2><p>Kept in this tab until you close it — saved copies stay in your chosen location.</p></div>
+      <span class="pill" id="libCount">0 videos</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="libempty" id="libEmpty">Your recordings will show up here.</div>
+  </section>
+
+  <!-- Converter -->
+  <section class="conv" id="convert">
+    <div class="libhead">
+      <div><h2>Convert video</h2><p>Turn any recording or video file into another format — MP4, WebM, MOV, MKV, GIF or audio.</p></div>
+      <span class="pill"><span class="g"></span>Runs on your device</span>
+    </div>
+    <div class="card convcard">
+      <div class="convgrid">
+        <div>
+          <div class="cvlabel">1 · Choose a video</div>
+          <div class="drop" id="drop">
+            <div class="di"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg></div>
+            <div class="dt"><b>Drop a video or audio file here</b>or pick one of your recordings below</div>
+            <button class="btn sm" id="pickFile">Choose file</button>
+            <input type="file" id="fileIn" accept="video/*,audio/*,.mkv,.mov,.avi,.m4v" hidden>
+          </div>
+          <select id="cvSrc" aria-label="Video to convert"></select>
+          <div class="srcinfo" id="srcInfo"></div>
+
+          <div class="cvlabel">2 · Convert to</div>
+          <div class="fmtgrid" id="fmtGrid"></div>
+
+          <div class="cvopts">
+            <div class="cvlabel">3 · Options</div>
+            <div class="ctl" id="cvQualRow"><span>Quality</span>
+              <div class="mseg" id="cvQual">
+                <button data-v="orig" title="No re-encoding — fastest">Original</button><button data-v="high">High</button><button data-v="balanced">Balanced</button><button data-v="small">Small</button>
+              </div>
+            </div>
+            <div class="ctl" id="cvResRow"><span>Resolution</span>
+              <div class="mseg" id="cvRes"><button data-v="orig">Original</button><button data-v="1080">1080p</button><button data-v="720">720p</button><button data-v="480">480p</button></div>
+            </div>
+            <div class="ctl" id="cvGifWRow"><span>GIF width</span>
+              <div class="mseg" id="cvGifW"><button data-v="320">320</button><button data-v="480">480</button><button data-v="720">720</button><button data-v="orig">Full</button></div>
+            </div>
+            <div class="ctl" id="cvGifFRow"><span>GIF smoothness</span>
+              <div class="mseg" id="cvGifF"><button data-v="8">8 fps</button><button data-v="12">12</button><button data-v="15">15</button><button data-v="24">24</button></div>
+            </div>
+            <div class="ctl"><span>Trim <small style="font-weight:500">(optional)</small></span>
+              <div class="trim"><input class="tin" id="cvStart" placeholder="Start 0:00" aria-label="Start time"><span>to</span><input class="tin" id="cvEnd" placeholder="End" aria-label="End time"></div>
+            </div>
+            <div class="cvsw" id="cvNoAudioRow"><label class="switch"><input type="checkbox" id="cvNoAudio"><s></s></label>Remove sound</div>
+            <p class="cvhint" id="cvHint"></p>
+          </div>
+        </div>
+
+        <div class="cvright">
+          <div class="status" id="cvStatus">
+            <div class="st"><span class="sic" id="cvIco"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h11l-3-3M20 17H9l3 3"/></svg></span><span id="cvTitle">Ready to convert</span></div>
+            <p id="cvSub">Choose a video and a format, then press Convert. The first time, the converter downloads once (about 32 MB).</p>
+            <div class="bar"><i id="cvBar"></i></div>
+            <div class="cvbtns">
+              <button class="record" id="cvGo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h11l-3-3M20 17H9l3 3"/></svg><span id="cvGoLbl">Convert</span></button>
+              <button class="btn" id="cvCancel" style="display:none">Cancel</button>
+            </div>
+          </div>
+          <div class="outlist" id="outList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    Videos are recorded and kept on your device — nothing is uploaded.
+  </footer>
+</div>
+
+<video id="srcScreen" class="src" muted playsinline></video>
+<video id="srcCam" class="src" muted playsinline></video>
+
+<!-- Dock -->
+<div class="dock" id="dock" role="toolbar" aria-label="Recording controls">
+  <div class="time"><i></i><span id="timer">0:00</span></div>
+  <div class="meters" aria-hidden="true">
+    <div class="mtr" id="mSys" title="Meeting / screen sound"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><div class="meter" id="meterSys"></div></div>
+    <div class="mtr" id="mMic" title="Your microphone"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg><div class="meter" id="meterMic"></div></div>
+  </div>
+  <button class="dbtn" id="muteBtn" title="Mute your mic in the recording (Alt+M)">
+    <svg id="muteIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>
+    <span class="lbl" id="muteLbl">Mute</span>
+  </button>
+  <button class="dbtn" id="markBtn" title="Bookmark this moment (Alt+B)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+    <span class="lbl">Mark</span>
+  </button>
+  <button class="dbtn" id="pauseBtn">
+    <svg id="pauseIco" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    <span class="lbl" id="pauseLbl">Pause</span>
+  </button>
+  <button class="dbtn stop" id="stopBtn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+    <span class="lbl">Stop</span>
+  </button>
+  <button class="dbtn ghost" id="cancelBtn" title="Discard recording" aria-label="Discard recording">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+  </button>
+</div>
+
+<div class="count" id="count"><div><div class="ring" id="countNum">3</div><small>Get ready…</small></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const optIds = ['optMic','optSys','optCount'];
+  let screenStream, micStream, camStream, audioCtx, meterCtx, analyser, recorder, chunks = [];
+  let ticker = null, mixTrack = null, recMode = 'screen';
+  let sysGain = null, micGain = null, sysAn = null, micAn = null, micMuted = false, marks = [], sink = null, wakeLock = null, recDate = null;
+  const baseTitle = document.title;
+  let startTime = 0, pausedTotal = 0, pauseStart = 0, tick, meterRaf, current = null, discard = false;
+  const recordings = [];
+
+  // ---------- helpers ----------
+  const notice = msg => { $('noticeText').textContent = msg || ''; $('notice').classList.toggle('show', !!msg); };
+  let toastT; const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2200); };
+  const fmt = ms => { const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = String(s%60).padStart(2,'0'); return h ? `${h}:${String(m).padStart(2,'0')}:${x}` : `${m}:${x}`; };
+  const mb = b => (b/1048576).toFixed(1) + ' MB';
+
+  // background picker
+  const BG_NAMES = { sunset:'Sunset', ocean:'Ocean', forest:'Forest', dusk:'Dusk', plain:'Plain — no colour' };
+  function setBg(name){
+    if (!BG_NAMES[name]) name = 'sunset';
+    document.documentElement.dataset.bg = name;
+    document.querySelectorAll('.sw button').forEach(b => b.classList.toggle('sel', b.dataset.bg === name));
+    $('bgName').textContent = BG_NAMES[name];
+    try{ localStorage.setItem('clipcast-bg', name); }catch(e){}
+  }
+  try{ setBg(localStorage.getItem('clipcast-bg') || 'sunset'); }catch(e){ setBg('sunset'); }
+  document.querySelectorAll('.sw button').forEach(b => b.onclick = () => setBg(b.dataset.bg));
+  $('bgBtn').onclick = e => { e.stopPropagation(); const m = $('bgMenu'), open = !m.classList.contains('show'); m.classList.toggle('show', open); $('bgBtn').setAttribute('aria-expanded', open); };
+  document.addEventListener('click', e => { if (!e.target.closest('.bgpick')){ $('bgMenu').classList.remove('show'); $('bgBtn').setAttribute('aria-expanded', false); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('bgMenu').classList.remove('show'); });
+
+  // theme
+  try{ const t = localStorage.getItem('clipcast-theme'); if (t) document.documentElement.dataset.theme = t; }catch(e){}
+  $('themeBtn').onclick = () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const next = dark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try{ localStorage.setItem('clipcast-theme', next); }catch(e){}
+  };
+
+  // support check
+  if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder){
+    notice('Screen recording isn\'t supported here. Please open this page in Chrome, Edge or Firefox on a computer.');
+    $('startBtn').disabled = true;
+  }
+
+  function pickMime(){
+    const mp4 = ['video/mp4;codecs=avc1,opus','video/mp4;codecs=avc1,mp4a.40.2','video/mp4'];
+    const webm = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    const list = (typeof S !== 'undefined' && S.format === 'webm') ? [...webm, ...mp4] : [...mp4, ...webm];
+    return list.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  }
+  const codecName = m => m.includes('vp9') ? 'WebM · VP9' : m.includes('vp8') ? 'WebM · VP8' : m.includes('webm') ? 'WebM' : m ? 'MP4 · H.264' : '—';
+
+  // option visuals
+  function syncOpts(){
+    optIds.forEach(id => document.querySelector(`.opt[data-for="${id}"]`).classList.toggle('on', $(id).checked));
+    $('micSelect').classList.toggle('show', $('optMic').checked && $('micSelect').options.length > 2);
+    $('camSelect').classList.toggle('show', $('camSelect').options.length > 2);
+  }
+  optIds.forEach(id => $(id).addEventListener('change', syncOpts));
+  document.querySelectorAll('.opt[data-for]').forEach(o => o.addEventListener('click', e => {
+    if (e.target.closest('.switch')) return;
+    const i = $(o.dataset.for); i.checked = !i.checked; i.dispatchEvent(new Event('change'));
+  }));
+
+  async function listDevices(){
+    try{
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      const fill = (sel, kind, label) => {
+        const keep = sel.value;
+        sel.innerHTML = `<option value="">Default ${label}</option>`;
+        devs.filter(d => d.kind === kind && d.deviceId && d.deviceId !== 'default').forEach((d,i) => {
+          const o = document.createElement('option'); o.value = d.deviceId; o.textContent = d.label || `${label} ${i+1}`; sel.appendChild(o);
+        });
+        sel.value = keep;
+      };
+      fill($('micSelect'),'audioinput','microphone'); fill($('camSelect'),'videoinput','camera');
+      syncOpts();
+    }catch(e){}
+  }
+  listDevices(); navigator.mediaDevices?.addEventListener?.('devicechange', listDevices);
+  syncOpts();
+
+  // ---------- settings (mode + camera layout) ----------
+  const S = { mode:'both', pos:'br', size:'m', shape:'circle', mirror:'on', volSys:100, volMic:100, quality:'balanced', format:'mp4' };
+  // video/audio bitrates per preset; screen text stays sharp thanks to the 'detail' content hint
+  const Q = {
+    small:    { v:1_000_000, a:64_000,  fps:15, name:'Compact' },
+    balanced: { v:2_500_000, a:96_000,  fps:30, name:'Balanced' },
+    high:     { v:6_000_000, a:128_000, fps:30, name:'High' }
+  };
+  const fpsFor = mode => mode === 'cam' ? Math.max(24, Q[S.quality].fps) : Q[S.quality].fps;
+  try{ Object.assign(S, JSON.parse(localStorage.getItem('clipcast-cam') || '{}')); }catch(e){}
+  const saveS = () => { try{ localStorage.setItem('clipcast-cam', JSON.stringify(S)); }catch(e){} };
+  const usesCam = () => S.mode === 'both' || S.mode === 'cam';
+  const usesScreen = () => S.mode !== 'cam';
+
+  function renderSettings(){
+    document.querySelectorAll('#modeSeg button').forEach(b => { const on = b.dataset.mode === S.mode; b.classList.toggle('sel', on); b.setAttribute('aria-checked', on); });
+    document.querySelectorAll('.mseg[data-key]').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('sel', S[g.dataset.key] === b.dataset.v)));
+    $('camSec').classList.toggle('show', usesCam());
+    ['ctlPos','ctlSize','ctlShape'].forEach(id => $(id).classList.toggle('hide', S.mode !== 'both'));
+    $('sysOpt').style.display = usesScreen() ? '' : 'none';
+    const mirror = S.mirror === 'on';
+    $('camPreview').classList.toggle('mirror', mirror); $('camStage').classList.toggle('mirror', mirror);
+    $('camPreview').classList.toggle('sq', S.shape === 'square' && S.mode === 'both');
+    $('screen').classList.toggle('badge-r', S.pos === 'tl' && S.mode === 'both');
+    const m = $('mock'); m.dataset.pos = S.pos;
+    m.classList.toggle('sq', S.shape === 'square');
+    m.classList.toggle('camonly', S.mode === 'cam'); m.classList.toggle('screenonly', S.mode === 'screen' || S.mode === 'meet');
+    const meet = S.mode === 'meet';
+    $('meetGuide').classList.toggle('show', meet);
+    $('mixer').classList.toggle('show', usesScreen());
+    $('sysTitle').textContent = meet ? 'Meeting sound' : 'Computer audio';
+    $('sysDesc').textContent = meet ? 'Hear the speakers and other participants' : 'Sound playing on screen';
+    $('micDesc').textContent = meet ? 'Your questions and comments' : 'Record your voice';
+    $('volSysLbl').textContent = meet ? 'Meeting volume' : 'Screen sound volume';
+    $('volSys').value = S.volSys; $('volMic').value = S.volMic;
+    $('volSysV').textContent = S.volSys + '%'; $('volMicV').textContent = S.volMic + '%';
+    // quality & size
+    document.querySelectorAll('#qualSeg button').forEach(b => { const on = b.dataset.q === S.quality; b.classList.toggle('sel', on); b.setAttribute('aria-checked', on); });
+    const q = Q[S.quality], mime = pickMime(), isWebm = mime.includes('webm');
+    // VP9 needs roughly 30% fewer bits than H.264 for the same picture
+    const vbps = isWebm && mime.includes('vp9') ? q.v * .7 : q.v;
+    const gbh = (vbps + q.a) * 3600 / 8 / 1e9;
+    const est = gbh < 1 ? `up to ${Math.round(gbh*1000/10)*10} MB / hour` : `up to ${gbh.toFixed(1)} GB / hour`;
+    $('estLabel').textContent = est; $('sizeLabel').textContent = est;
+    $('fmtLabel').textContent = codecName(mime);
+    $('qualLabel').textContent = `${S.mode === 'cam' ? '720p' : '1080p'} · ${fpsFor(S.mode)}fps`;
+    $('qualHint').textContent = {
+      small:'Smallest files, ideal for meetings, slides and long seminars. Text stays sharp; fast motion looks less smooth.',
+      balanced:'Clear, smooth video at a moderate size. Good for most recordings.',
+      high:'Best for detailed demos, playing videos on screen, or editing later. Largest files.'
+    }[S.quality] + (isWebm ? ' WebM files are smaller but may not open in PowerPoint or on iPhone; they play in Chrome, VLC, YouTube and Google Drive.' : ' MP4 opens almost everywhere.');
+    $('emptyText').textContent = {
+      both:'Your screen with your face in a bubble. Choose options on the right, then hit record.',
+      screen:'Just your screen. Choose options on the right, then hit record.',
+      cam:'Just you on camera, like a live broadcast. Turn on your camera to preview it here.',
+      meet:'Records the meeting on your screen, its sound, and your own voice. Follow the tips on the right when choosing what to share.'
+    }[S.mode];
+    if (!$('screen').classList.contains('live') && $('screen').dataset.view !== 'review')
+      setView(S.mode === 'cam' && camStream ? 'cam' : 'idle');
+  }
+  document.querySelectorAll('#modeSeg button').forEach(b => b.onclick = () => {
+    if (recorder && recorder.state !== 'inactive') return toast('Stop recording to change the mode');
+    S.mode = b.dataset.mode; saveS();
+    if (S.mode === 'meet'){ $('optSys').checked = true; $('optMic').checked = true; syncOpts(); }
+    renderSettings();
+    if (usesCam() && !camStream) startCamera();
+    if (!usesCam()) stopCamera();
+  });
+  document.querySelectorAll('#qualSeg button').forEach(b => b.onclick = () => {
+    if (recorder && recorder.state !== 'inactive') return toast('Stop recording to change quality');
+    S.quality = b.dataset.q; saveS(); renderSettings();
+  });
+  document.querySelectorAll('.mseg[data-key]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (g.dataset.key === 'format' && recorder && recorder.state !== 'inactive') return toast('Stop recording to change file type');
+    S[g.dataset.key] = b.dataset.v; saveS(); renderSettings();   // applies live, even mid-recording
+  }));
+
+  // ---------- camera ----------
+  async function startCamera(){
+    camStream?.getTracks().forEach(t => t.stop());
+    $('camState').textContent = 'Starting…';
+    try{
+      const id = $('camSelect').value;
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video:{ deviceId: id ? {exact:id} : undefined, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false
+      });
+      ['camPreview','camStage','srcCam'].forEach(v => { $(v).srcObject = camStream; $(v).play().catch(()=>{}); });
+      camStream.getVideoTracks()[0].addEventListener('ended', () => { camStream = null; renderCam(); });
+      listDevices();
+    }catch(e){
+      camStream = null;
+      notice('Couldn\'t open your camera. Please allow camera access for this site, and close other apps using it.');
+    }
+    renderCam(); renderSettings();
+    return !!camStream;
+  }
+  function stopCamera(){
+    camStream?.getTracks().forEach(t => t.stop()); camStream = null;
+    ['camPreview','camStage','srcCam'].forEach(v => $(v).srcObject = null);
+    renderCam(); renderSettings();
+  }
+  function renderCam(){
+    const on = !!camStream;
+    $('camSec').classList.toggle('on', on);
+    $('camState').textContent = on ? (camStream.getVideoTracks()[0].label || 'Camera on').replace(/\s*\(.*\)$/,'') : 'Off — turn on to preview';
+    $('camBtn').textContent = on ? 'Turn off' : 'Turn on';
+  }
+  $('camBtn').onclick = () => {
+    if (camStream && recorder && recorder.state !== 'inactive') return toast('Camera is in use by the recording');
+    camStream ? stopCamera() : startCamera();
+  };
+  $('camSelect').addEventListener('change', () => camStream && startCamera());
+  // turn the camera back on automatically if permission was already given
+  navigator.permissions?.query({ name:'camera' }).then(p => { if (p.state === 'granted' && usesCam()) startCamera(); }).catch(()=>{});
+
+  // ---------- compositor: draws screen + face into one video ----------
+  const canvas = $('mixCanvas'), ctx = canvas.getContext('2d');
+  const sizes = { s:.2, m:.27, l:.36 };
+  function drawCover(v, x, y, w, h, mirror){
+    const vw = v.videoWidth, vh = v.videoHeight; if (!vw || !vh) return;
+    const sc = Math.max(w/vw, h/vh), sw = w/sc, sh = h/sc, sx = (vw-sw)/2, sy = (vh-sh)/2;
+    if (mirror){ ctx.save(); ctx.translate(x+w, y); ctx.scale(-1,1); ctx.drawImage(v, sx, sy, sw, sh, 0, 0, w, h); ctx.restore(); }
+    else ctx.drawImage(v, sx, sy, sw, sh, x, y, w, h);
+  }
+  function shapePath(x, y, d){
+    ctx.beginPath();
+    if (S.shape === 'square'){
+      const r = d*.18;
+      ctx.moveTo(x+r,y); ctx.arcTo(x+d,y,x+d,y+d,r); ctx.arcTo(x+d,y+d,x,y+d,r); ctx.arcTo(x,y+d,x,y,r); ctx.arcTo(x,y,x+d,y,r); ctx.closePath();
+    } else ctx.arc(x+d/2, y+d/2, d/2, 0, Math.PI*2);
+  }
+  function draw(){
+    const W = canvas.width, H = canvas.height, cam = $('srcCam'), mirror = S.mirror === 'on';
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    if (recMode === 'cam'){ if (camStream) drawCover(cam, 0, 0, W, H, mirror); return; }
+    const sv = $('srcScreen');
+    if (sv.videoWidth){
+      const sc = Math.min(W/sv.videoWidth, H/sv.videoHeight), w = sv.videoWidth*sc, h = sv.videoHeight*sc;
+      ctx.drawImage(sv, (W-w)/2, (H-h)/2, w, h);
+    }
+    if (recMode === 'both' && camStream && cam.videoWidth){
+      const base = Math.min(W, H), d = Math.round(base*sizes[S.size]), m = Math.round(base*.035);
+      const x = S.pos.includes('r') ? W-d-m : m, y = S.pos.includes('b') ? H-d-m : m;
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = d*.1; ctx.shadowOffsetY = d*.02;
+      shapePath(x, y, d); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
+      ctx.save(); shapePath(x, y, d); ctx.clip(); drawCover(cam, x, y, d, d, mirror); ctx.restore();
+      shapePath(x, y, d); ctx.lineWidth = Math.max(3, d*.03); ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.stroke();
+    }
+  }
+  // a worker keeps frames coming even when this tab is in the background
+  function startTicker(fps){
+    const src = 'let t;onmessage=e=>{clearInterval(t);if(e.data>0)t=setInterval(()=>postMessage(0),e.data)}';
+    ticker = new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
+    ticker.onmessage = draw; ticker.postMessage(1000/fps);
+  }
+  function stopTicker(){ ticker?.postMessage(0); ticker?.terminate(); ticker = null; }
+  const whenReady = v => v.readyState >= 2 ? Promise.resolve() : new Promise(r => { v.addEventListener('loadeddata', r, {once:true}); setTimeout(r, 3000); });
+  const even = n => Math.max(2, Math.round(n/2)*2);
+
+  renderSettings(); renderCam();
+
+  // ---------- audio mixer + meters ----------
+  const bars = 10;
+  ['meterSys','meterMic'].forEach(id => { for (let i=0;i<bars;i++) $(id).appendChild(document.createElement('span')); });
+  function paintMeter(an, el, buf){
+    const spans = el.children;
+    let level = 0;
+    if (an){ an.getByteTimeDomainData(buf); let peak = 0; for (const v of buf) peak = Math.max(peak, Math.abs(v-128)); level = Math.min(1, peak/64); }
+    for (let i=0;i<bars;i++){
+      const on = i/bars < level;
+      spans[i].classList.toggle('lit', on);
+      spans[i].style.height = on ? (6 + Math.sin(i*.9)*3 + level*12) + 'px' : '4px';
+    }
+  }
+  function startMeters(){
+    const buf = new Uint8Array(256);
+    const loop = () => { paintMeter(sysAn, $('meterSys'), buf); paintMeter(micAn, $('meterMic'), buf); meterRaf = requestAnimationFrame(loop); };
+    loop();
+  }
+  function stopMeters(){ cancelAnimationFrame(meterRaf); document.querySelectorAll('.meter span').forEach(s => { s.classList.remove('lit'); s.style.height = '4px'; }); }
+  function applyGains(){
+    if (sysGain) sysGain.gain.value = S.volSys/100;
+    if (micGain) micGain.gain.value = micMuted ? 0 : S.volMic/100;
+  }
+  ['volSys','volMic'].forEach(id => $(id).addEventListener('input', () => {
+    S[id] = +$(id).value; $(id + 'V').textContent = S[id] + '%'; saveS(); applyGains();
+  }));
+  function setMute(m){
+    micMuted = m; applyGains();
+    $('muteBtn').classList.toggle('muted', m); $('mMic').classList.toggle('muted', m);
+    $('muteLbl').textContent = m ? 'Unmute' : 'Mute';
+    $('muteIco').innerHTML = m
+      ? '<path d="M2 2l20 20M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.7M17 16.9A7 7 0 0 1 5 12M19 12a7 7 0 0 1-.4 2.3M12 19v3"/>'
+      : '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/>';
+  }
+  $('muteBtn').onclick = () => { setMute(!micMuted); toast(micMuted ? 'Your mic is muted in the recording' : 'Your mic is live again'); };
+  function addMark(){
+    if (!recorder || recorder.state === 'inactive') return;
+    const t = elapsed(); marks.push(t); toast('Bookmark added at ' + fmt(t));
+  }
+  $('markBtn').onclick = addMark;
+  async function keepAwake(){ try{ wakeLock = await navigator.wakeLock?.request('screen'); }catch(e){} }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && recorder && recorder.state !== 'inactive' && (!wakeLock || wakeLock.released)) keepAwake();
+  });
+  async function uniqueName(base, ext){
+    let name = `${base}.${ext}`, n = 1;
+    while (true){ try{ await dirHandle.getFileHandle(name); n++; name = `${base} (${n}).${ext}`; }catch(e){ return name; } }
+  }
+
+  // ---------- recording ----------
+  $('startBtn').onclick = start;
+  $('stopBtn').onclick = stop;
+  $('pauseBtn').onclick = togglePause;
+  $('cancelBtn').onclick = () => { if (confirm('Discard this recording?')){ discard = true; stop(); } };
+  $('newBtn').onclick = () => { showStage('idle'); window.scrollTo({top:0,behavior:'smooth'}); };
+  document.addEventListener('keydown', e => {
+    if (!e.altKey || !recorder || recorder.state === 'inactive') return;
+    const k = e.key.toLowerCase();
+    if (k === 's'){ e.preventDefault(); stop(); }
+    else if (k === 'm' && micGain){ e.preventDefault(); $('muteBtn').click(); }
+    else if (k === 'b'){ e.preventDefault(); addMark(); }
+  });
+
+  function setView(v){ $('screen').dataset.view = v; }
+  function showStage(mode, view){
+    const s = $('screen');
+    s.classList.toggle('live', mode === 'live');
+    s.classList.toggle('review', mode === 'review');
+    setView(mode === 'review' ? 'review' : mode === 'live' ? view : (S.mode === 'cam' && camStream ? 'cam' : 'idle'));
+    $('reviewActions').classList.toggle('show', mode === 'review');
+    $('stageBar').style.display = mode === 'review' ? 'none' : '';
+    if (mode !== 'review') $('reviewVideo').pause();
+    document.querySelectorAll('.clip').forEach(c => c.classList.toggle('active', mode === 'review' && c.dataset.id === String(current?.id)));
+  }
+
+  async function start(){
+    notice(''); $('startBtn').disabled = true; discard = false;
+    // ask for folder access now, while the click still counts as a user action
+    if (saveMode === 'folder' && dirHandle && !await folderAllowed(true)) toast('Folder not allowed — you can save manually after');
+    renderSave();
+    recMode = S.mode;
+
+    // camera first (needs to be on for "Camera only" and the bubble)
+    if (usesCam() && !camStream && !await startCamera()){
+      if (recMode === 'cam'){ $('startBtn').disabled = false; return; }
+      recMode = 'screen'; toast('Camera unavailable — recording screen only');
+    }
+
+    if (recMode !== 'cam'){
+      try{
+        screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video:{ frameRate:{ ideal:fpsFor(recMode), max:fpsFor(recMode) }, width:{ideal:1920}, height:{ideal:1080} },
+          // keep the meeting sound clean and still audible to you while sharing
+          audio: $('optSys').checked ? { echoCancellation:false, noiseSuppression:false, autoGainControl:false, suppressLocalAudioPlayback:false } : false,
+          selfBrowserSurface:'exclude', systemAudio:'include', surfaceSwitching:'include', preferCurrentTab:false
+        });
+      }catch(e){
+        $('startBtn').disabled = false;
+        if (e.name !== 'NotAllowedError') notice('Couldn\'t start screen sharing: ' + e.message);
+        return;
+      }
+      screenStream.getVideoTracks()[0].addEventListener('ended', () => recorder && recorder.state !== 'inactive' && stop());
+      if (recMode === 'meet' && $('optSys').checked && !screenStream.getAudioTracks().length){
+        const go = confirm('The meeting sound is not being shared, so other people\'s voices won\'t be recorded.\n\nOK = record anyway (only your mic)\nCancel = go back and share again with "Also share tab/system audio" switched on');
+        if (!go){
+          screenStream.getTracks().forEach(t => t.stop()); screenStream = null; $('startBtn').disabled = false;
+          notice('Press Start recording again, pick the meeting tab (or Entire screen on Windows) and switch on "Also share tab audio" / "Also share system audio".');
+          return;
+        }
+      }
+    }
+
+    if ($('optMic').checked){
+      try{
+        const id = $('micSelect').value;
+        micStream = await navigator.mediaDevices.getUserMedia({ audio:{ deviceId: id ? {exact:id} : undefined, echoCancellation:true, noiseSuppression:true } });
+        listDevices();
+      }catch(e){ notice('Microphone unavailable — recording without your voice.'); }
+    }
+
+    // video: plain screen, or a canvas that mixes screen + face (or just the face)
+    let videoTrack, view;
+    if (recMode === 'screen' || recMode === 'meet'){
+      videoTrack = screenStream.getVideoTracks()[0];
+      $('liveVideo').srcObject = screenStream; view = 'screen';
+    } else {
+      let W, H;
+      if (recMode === 'both'){
+        const sv = $('srcScreen'); sv.srcObject = screenStream; sv.play().catch(()=>{}); await whenReady(sv);
+        const st = screenStream.getVideoTracks()[0].getSettings();
+        W = sv.videoWidth || st.width || 1920; H = sv.videoHeight || st.height || 1080;
+        const k = Math.min(1, 1920/Math.max(W, H)); W *= k; H *= k;
+      } else {
+        const cv = $('srcCam'); await whenReady(cv);
+        W = cv.videoWidth || 1280; H = cv.videoHeight || 720;
+      }
+      canvas.width = even(W); canvas.height = even(H);
+      draw(); startTicker(fpsFor(recMode));
+      mixTrack = canvas.captureStream(fpsFor(recMode)).getVideoTracks()[0];
+      videoTrack = mixTrack; view = 'mix';
+    }
+
+    // audio: meeting/screen sound + your mic, each with its own volume, mixed into one track
+    const tracks = [videoTrack];
+    const hasSys = !!screenStream?.getAudioTracks().length, hasMic = !!micStream?.getAudioTracks().length;
+    if (hasSys || hasMic){
+      audioCtx = new AudioContext(); audioCtx.resume().catch(()=>{});
+      const dest = audioCtx.createMediaStreamDestination();
+      const chain = stream => {
+        const g = audioCtx.createGain(), an = audioCtx.createAnalyser(); an.fftSize = 256;
+        audioCtx.createMediaStreamSource(stream).connect(g); g.connect(dest); g.connect(an);
+        return [g, an];
+      };
+      if (hasSys) [sysGain, sysAn] = chain(screenStream);
+      if (hasMic) [micGain, micAn] = chain(micStream);
+      setMute(false); applyGains();
+      tracks.push(dest.stream.getAudioTracks()[0]);
+    }
+    $('mSys').classList.toggle('off', !hasSys); $('mMic').classList.toggle('off', !hasMic);
+    $('muteBtn').classList.toggle('hide', !hasMic);
+    const mixed = new MediaStream(tracks);
+
+    showStage('live', view);
+    if (recMode !== 'cam' && $('optSys').checked && !screenStream.getAudioTracks().length && !micStream) toast('No audio was shared — video only');
+
+    if ($('optCount').checked) await countdown();
+    if (screenStream && screenStream.getVideoTracks()[0].readyState === 'ended'){ cleanup(); showStage('idle'); return; }
+
+    const mimeType = pickMime();
+    // compression: preset bitrate, plus a hint so screen text stays crisp at low bitrates
+    const q = Q[S.quality];
+    try{ videoTrack.contentHint = recMode === 'cam' ? 'motion' : 'detail'; }catch(e){}
+    const vbps = mimeType.includes('vp9') ? Math.round(q.v * .7) : q.v;
+    try{ recorder = new MediaRecorder(mixed, { mimeType, videoBitsPerSecond: vbps, audioBitsPerSecond: q.a }); }
+    catch(e){ recorder = new MediaRecorder(mixed); }
+    chunks = []; marks = []; recDate = new Date();
+
+    // "My folder": write straight to disk while recording (safe for long seminars)
+    sink = null;
+    if (saveMode === 'folder' && await folderAllowed(false)){
+      try{
+        const ext = (recorder.mimeType || mimeType).includes('mp4') ? 'mp4' : 'webm';
+        const fname = await uniqueName(fileNameOf({ name: defaultName(recDate), ext }).replace(/\.[^.]+$/, ''), ext);
+        const fh = await dirHandle.getFileHandle(fname, { create:true });
+        sink = { fh, fname, w: await fh.createWritable(), q: Promise.resolve(), bytes: 0, failed: false };
+      }catch(e){ sink = null; }
+    }
+    recorder.ondataavailable = e => {
+      if (!e.data?.size) return;
+      if (sink && !sink.failed){
+        const s2 = sink; s2.bytes += e.data.size;
+        s2.q = s2.q.then(() => s2.w.write(e.data)).catch(err => {
+          s2.failed = true; notice('Writing to your folder stopped (' + err.message + '). The rest is kept in memory — download it when done.');
+        });
+      } else chunks.push(e.data);
+    };
+    recorder.onstop = finish;
+    recorder.start(1000);
+    keepAwake();
+    startMeters();
+    startTime = Date.now(); pausedTotal = 0;
+    $('dock').classList.add('show'); $('dock').classList.remove('paused'); $('screen').classList.remove('paused');
+    setPauseUI(false); $('badgeText').textContent = 'Recording';
+    tick = setInterval(updateTimer, 250); updateTimer();
+  }
+
+  function countdown(){
+    return new Promise(res => {
+      let n = 3; $('countNum').textContent = n; $('count').classList.add('show');
+      const iv = setInterval(() => {
+        n--;
+        if (n <= 0){ clearInterval(iv); $('count').classList.remove('show'); res(); }
+        else { $('countNum').textContent = n; const r = $('countNum'); r.style.animation = 'none'; r.offsetHeight; r.style.animation = ''; }
+      }, 1000);
+    });
+  }
+
+  const elapsed = () => Math.max(0, (recorder?.state === 'paused' ? pauseStart : Date.now()) - startTime - pausedTotal);
+  function updateTimer(){
+    const t = fmt(elapsed()); $('timer').textContent = t;
+    document.title = `${recorder?.state === 'paused' ? '❚❚ Paused' : '● Rec'} ${t} · Clipcast`;
+  }
+  const defaultName = d => `Recording ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`.replace(/[\/:]/g,'-');
+  function setPauseUI(p){
+    $('pauseLbl').textContent = p ? 'Resume' : 'Pause';
+    $('pauseIco').innerHTML = p ? '<path d="M7 4l13 8-13 8z"/>' : '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+    $('dock').classList.toggle('paused', p); $('screen').classList.toggle('paused', p);
+    $('badgeText').textContent = p ? 'Paused' : 'Recording';
+  }
+  function togglePause(){
+    if (!recorder) return;
+    if (recorder.state === 'recording'){ recorder.pause(); pauseStart = Date.now(); setPauseUI(true); }
+    else if (recorder.state === 'paused'){ recorder.resume(); pausedTotal += Date.now() - pauseStart; setPauseUI(false); }
+    updateTimer();
+  }
+  function stop(){ if (recorder && recorder.state !== 'inactive') recorder.stop(); }
+
+  function cleanup(){
+    clearInterval(tick); stopMeters(); document.title = baseTitle;
+    wakeLock?.release().catch(()=>{}); wakeLock = null;
+    sysGain = micGain = sysAn = micAn = null; setMute(false);
+    $('dock').classList.remove('show');
+    stopTicker(); mixTrack?.stop(); mixTrack = null;
+    screenStream?.getTracks().forEach(t => t.stop()); micStream?.getTracks().forEach(t => t.stop());
+    audioCtx?.close().catch(()=>{});
+    screenStream = micStream = audioCtx = null;
+    $('liveVideo').srcObject = null; $('srcScreen').srcObject = null;   // camera stays on for the next take
+    $('startBtn').disabled = false;
+  }
+
+  async function finish(){
+    const duration = elapsed(), recMarks = marks.slice(), s2 = sink; sink = null;
+    cleanup();
+    const type = recorder.mimeType || 'video/webm';
+    const ext = type.includes('mp4') ? 'mp4' : 'webm';
+    const d = recDate || new Date(), name = defaultName(d);
+
+    let blob = null, savedTo = null;
+    if (s2){
+      try{ await s2.q; await s2.w.close(); }catch(e){}
+      if (discard){ try{ await dirHandle.removeEntry(s2.fname); }catch(e){} }
+      else if (!s2.failed){ blob = await s2.fh.getFile(); savedTo = `${dirHandle.name}/${s2.fname}`; }
+      else blob = new Blob([await s2.fh.getFile(), ...chunks], { type });
+    }
+    if (discard || (!blob && !chunks.length)){ showStage('idle'); toast('Recording discarded'); return; }
+    if (!blob) blob = new Blob(chunks, { type });
+    chunks = [];
+
+    const rec = { id: Date.now(), url: URL.createObjectURL(blob), blob, ext, name, duration, date: d, marks: recMarks };
+    recordings.unshift(rec);
+    openRec(rec);
+    if (savedTo) markSaved(rec, savedTo);
+    else if (saveMode === 'folder') save(rec, true);
+    else { renderLib(); toast('Recording ready'); }
+  }
+
+  function renderMarks(rec){
+    const m = $('marks'); m.innerHTML = '';
+    if (!rec?.marks?.length){ m.classList.remove('show'); return; }
+    m.classList.add('show');
+    const lbl = document.createElement('span'); lbl.textContent = 'Bookmarks:'; m.appendChild(lbl);
+    rec.marks.forEach((t, i) => {
+      const c = document.createElement('button'); c.className = 'chip';
+      c.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12v18l-6-4-6 4z"/></svg>';
+      c.append(fmt(t)); c.title = 'Jump to bookmark ' + (i+1);
+      c.onclick = () => { const v = $('reviewVideo'); v.currentTime = t/1000; v.play().catch(()=>{}); };
+      m.appendChild(c);
+    });
+    const cp = document.createElement('button'); cp.className = 'chip'; cp.textContent = 'Copy list';
+    cp.onclick = () => {
+      const txt = `${rec.name}\n` + rec.marks.map((t,i) => `Bookmark ${i+1} — ${fmt(t)}`).join('\n');
+      navigator.clipboard?.writeText(txt).then(() => toast('Bookmarks copied'), () => toast('Couldn\'t copy'));
+    };
+    m.appendChild(cp);
+  }
+
+  function openRec(rec){
+    current = rec;
+    $('reviewVideo').src = rec.url;
+    $('fileName').value = rec.name;
+    showSavedInfo(rec); renderMarks(rec);
+    showStage('review');
+  }
+  const fileNameOf = rec => `${(rec.name || 'recording').trim().replace(/[\\/:*?"<>|]/g,'-')}.${rec.ext}`;
+  function download(rec){
+    const a = document.createElement('a'); a.href = rec.url;
+    a.download = fileNameOf(rec);
+    document.body.appendChild(a); a.click(); a.remove();
+    markSaved(rec, 'Downloads');
+  }
+  $('fileName').addEventListener('input', () => { if (current){ current.name = $('fileName').value; renderLib(); } });
+  $('downloadBtn').onclick = () => current && save(current);
+
+  // ---------- save location ----------
+  const canAsk = 'showSaveFilePicker' in window;
+  const canFolder = 'showDirectoryPicker' in window;
+  let saveMode = 'downloads', dirHandle = null;
+
+  // small IndexedDB store so the chosen folder is remembered between visits
+  const idb = () => new Promise((res, rej) => {
+    const r = indexedDB.open('clipcast', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  const kvGet = async k => { try{ const db = await idb(); return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); }catch(e){ return undefined; } };
+  const kvSet = async (k, v) => { try{ const db = await idb(); db.transaction('kv','readwrite').objectStore('kv').put(v, k); }catch(e){} };
+
+  async function folderAllowed(ask){
+    if (!dirHandle) return false;
+    const o = { mode:'readwrite' };
+    try{
+      if (await dirHandle.queryPermission(o) === 'granted') return true;
+      if (ask && await dirHandle.requestPermission(o) === 'granted') return true;
+    }catch(e){}
+    return false;
+  }
+
+  async function pickFolder(){
+    try{
+      dirHandle = await window.showDirectoryPicker({ id:'clipcast', mode:'readwrite', startIn:'videos' });
+      await kvSet('dir', dirHandle);
+      return true;
+    }catch(e){
+      if (e.name !== 'AbortError') notice('Couldn\'t use that folder: ' + e.message);
+      return false;
+    }
+  }
+
+  async function setMode(mode, fromUser){
+    if (mode === 'folder' && !canFolder) mode = 'downloads';
+    if (mode === 'ask' && !canAsk) mode = 'downloads';
+    if (mode === 'folder' && fromUser && !dirHandle){
+      if (!await pickFolder()) return renderSave();
+    }
+    saveMode = mode;
+    try{ localStorage.setItem('clipcast-save', mode); }catch(e){}
+    renderSave();
+  }
+
+  async function renderSave(){
+    document.querySelectorAll('#saveSeg button').forEach(b => {
+      const on = b.dataset.mode === saveMode;
+      b.classList.toggle('sel', on); b.setAttribute('aria-checked', on);
+    });
+    $('folderBox').classList.toggle('show', saveMode === 'folder');
+    const hints = {
+      downloads: 'Videos go to your browser\'s Downloads folder when you click Download.',
+      ask: 'You\'ll choose the folder and file name each time you save.',
+      folder: 'Each recording is saved here automatically as soon as you stop.'
+    };
+    let hint = hints[saveMode];
+    if (!canFolder || !canAsk) hint += ' Choosing a folder works in Chrome or Edge on a computer.';
+    $('saveHint').textContent = hint;
+    $('saveLbl').textContent = saveMode === 'ask' ? 'Save as…' : saveMode === 'folder' ? 'Save to folder' : 'Download';
+    if (saveMode === 'folder'){
+      $('folderName').textContent = dirHandle ? dirHandle.name : 'No folder chosen';
+      const ok = await folderAllowed(false);
+      const st = $('folderState');
+      st.classList.toggle('warn', !!dirHandle && !ok);
+      st.textContent = !dirHandle ? 'Pick where videos go' : ok ? 'Ready — auto-saving here' : 'Will ask permission when you record';
+    }
+  }
+
+  document.querySelectorAll('#saveSeg button').forEach(b => {
+    if ((b.dataset.mode === 'folder' && !canFolder) || (b.dataset.mode === 'ask' && !canAsk)) b.disabled = true;
+    b.onclick = () => setMode(b.dataset.mode, true);
+  });
+  $('changeFolder').onclick = async () => { if (await pickFolder()) renderSave(); };
+
+  (async () => {
+    let m = 'downloads';
+    try{ m = localStorage.getItem('clipcast-save') || 'downloads'; }catch(e){}
+    if (canFolder) dirHandle = await kvGet('dir') || null;
+    if (m === 'folder' && !dirHandle) m = 'downloads';
+    setMode(m, false);
+  })();
+
+  async function writeToFolder(rec){
+    let name = fileNameOf(rec), base = name.replace(/\.[^.]+$/, ''), n = 1;
+    // don't overwrite an existing file with the same name
+    while (true){
+      try{ await dirHandle.getFileHandle(name); n++; name = `${base} (${n}).${rec.ext}`; }
+      catch(e){ break; }
+    }
+    const fh = await dirHandle.getFileHandle(name, { create:true });
+    const w = await fh.createWritable(); await w.write(rec.blob); await w.close();
+    markSaved(rec, `${dirHandle.name}/${name}`);
+    return true;
+  }
+
+  async function saveAs(rec){
+    try{
+      const fh = await window.showSaveFilePicker({
+        suggestedName: fileNameOf(rec), id:'clipcast', startIn:'videos',
+        types:[{ description: FORMATS[rec.ext]?.label || 'Video', accept:{ [mimeOf(rec.ext)]: ['.' + rec.ext] } }]
+      });
+      const w = await fh.createWritable(); await w.write(rec.blob); await w.close();
+      markSaved(rec, fh.name);
+    }catch(e){
+      if (e.name !== 'AbortError') notice('Couldn\'t save the file: ' + e.message);
+    }
+  }
+
+  async function save(rec, auto){
+    try{
+      if (saveMode === 'ask' && !auto) return saveAs(rec);
+      if (saveMode === 'folder'){
+        if (await folderAllowed(!auto)) return await writeToFolder(rec);
+        if (auto){ toast('Folder needs permission — click Save to folder'); return; }
+        notice('No permission for that folder, so the video was downloaded instead.');
+      }
+      if (!auto) download(rec);
+    }catch(e){
+      notice('Couldn\'t save to your folder (' + e.message + '). Downloading instead.');
+      download(rec);
+    }
+  }
+
+  function markSaved(rec, where){
+    rec.savedTo = where;
+    if (current === rec) showSavedInfo(rec);
+    renderLib();
+    toast('Saved to ' + where);
+  }
+  function showSavedInfo(rec){
+    const s = $('savedInfo');
+    s.classList.toggle('ok', !!rec?.savedTo);
+    s.textContent = rec?.savedTo ? '✓ Saved to ' + rec.savedTo : 'Not saved yet — download it to keep it.';
+  }
+
+  function renderLib(){
+    const g = $('grid'); g.innerHTML = '';
+    $('libEmpty').style.display = recordings.length ? 'none' : '';
+    $('libCount').textContent = `${recordings.length} video${recordings.length === 1 ? '' : 's'}`;
+    recordings.forEach(r => {
+      const c = document.createElement('div'); c.className = 'card clip'; c.dataset.id = r.id;
+      if (current && current.id === r.id && $('screen').classList.contains('review')) c.classList.add('active');
+      c.innerHTML = `
+        <div class="thumb"><video muted preload="metadata" playsinline></video><span class="dur">${fmt(r.duration)}</span></div>
+        <div class="clipbody">
+          <div class="t"><b></b><small>${mb(r.blob.size)} · ${r.ext.toUpperCase()}${r.savedTo ? ' · <span style="color:var(--ok);font-weight:600">Saved</span>' : ''}</small></div>
+          <button class="mini" data-act="dl" title="Save" aria-label="Save"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>
+          <button class="mini" data-act="cv" title="Convert" aria-label="Convert"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h11l-3-3M20 17H9l3 3"/></svg></button>
+          <button class="mini" data-act="del" title="Delete" aria-label="Delete"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+        </div>`;
+      c.querySelector('b').textContent = r.name;
+      c.querySelector('video').src = r.url + '#t=0.5';
+      c.onclick = e => {
+        const act = e.target.closest('[data-act]')?.dataset.act;
+        if (act === 'dl') return save(r);
+        if (act === 'cv'){ selectSource('r' + r.id); $('convert').scrollIntoView({behavior:'smooth'}); return; }
+        if (act === 'del'){
+          if (!confirm('Delete this recording?')) return;
+          recordings.splice(recordings.indexOf(r),1); URL.revokeObjectURL(r.url);
+          if (current === r){ current = null; showStage('idle'); }
+          return renderLib();
+        }
+        openRec(r); window.scrollTo({top:0,behavior:'smooth'});
+      };
+      g.appendChild(c);
+    });
+    refreshSources(); renderOutputs();
+  }
+
+  // ---------- converter (FFmpeg running inside the browser) ----------
+  const ENGINE_BASES = window.CLIPCAST_ENGINE_BASES || [
+    'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd',
+    'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd'
+  ];
+  const WASM_SIZE = 32232419;
+  const CV = { fmt:'mp4', q:'balanced', res:'orig', gifW:'480', gifF:'12' };
+  try{ Object.assign(CV, JSON.parse(localStorage.getItem('clipcast-conv') || '{}')); }catch(e){}
+  const saveCV = () => { try{ localStorage.setItem('clipcast-conv', JSON.stringify(CV)); }catch(e){} };
+  const uploads = [], outputs = [];
+  let srcId = '', engine = null, busy = false, cancelled = false, uploadN = 0;
+
+  // the worker drives the FFmpeg engine off the main thread
+  const workerSrc = `
+    let ff = null;
+    self.onmessage = async ({ data: { id, type, payload } }) => {
+      try {
+        let res = true;
+        if (type === 'load') {
+          importScripts(payload.coreURL);
+          ff = await self.createFFmpegCore({ mainScriptUrlOrBlob: payload.coreURL + '#' + btoa(JSON.stringify({ wasmURL: payload.wasmURL })) });
+          ff.setLogger(d => self.postMessage({ type: 'log', data: d.message }));
+          ff.setProgress(() => {});
+        } else if (type === 'exec') {
+          ff.setTimeout(-1); ff.exec(...payload); res = ff.ret; ff.reset();
+        } else if (type === 'mount') {
+          try { ff.FS.mkdir('/in'); } catch (e) {}
+          ff.FS.mount(ff.FS.filesystems.WORKERFS, { blobs: [{ name: payload.name, data: payload.blob }] }, '/in');
+        } else if (type === 'unmount') {
+          try { ff.FS.unmount('/in'); } catch (e) {}
+        } else if (type === 'read') {
+          const d = ff.FS.readFile(payload.path);
+          self.postMessage({ id, res: d }, [d.buffer]); return;
+        } else if (type === 'rm') {
+          try { ff.FS.unlink(payload.path); } catch (e) {}
+        }
+        self.postMessage({ id, res });
+      } catch (e) { self.postMessage({ id, err: String((e && e.message) || e) }); }
+    };`;
+
+  function makeEngine(){
+    const w = new Worker(URL.createObjectURL(new Blob([workerSrc], { type:'text/javascript' })));
+    const pend = new Map(); let n = 0;
+    const eng = {
+      onLog: null,
+      call(type, payload){ return new Promise((res, rej) => { const id = ++n; pend.set(id, { res, rej }); w.postMessage({ id, type, payload }); }); },
+      kill(){ w.terminate(); pend.forEach(p => p.rej(new Error('cancelled'))); pend.clear(); }
+    };
+    w.onmessage = ({ data }) => {
+      if (data.type === 'log'){ eng.onLog?.(data.data); return; }
+      const p = pend.get(data.id); if (!p) return; pend.delete(data.id);
+      data.err ? p.rej(new Error(data.err)) : p.res(data.res);
+    };
+    w.onerror = e => { e.preventDefault(); pend.forEach(p => p.rej(new Error(e.message || 'The converter stopped unexpectedly'))); pend.clear(); };
+    return eng;
+  }
+
+  // download the engine once; the browser keeps a copy for next time
+  async function fetchCached(url, type, onProg){
+    let cache = null;
+    try{
+      cache = await caches.open('clipcast-engine-v1');
+      const hit = await cache.match(url);
+      if (hit) return URL.createObjectURL(new Blob([await hit.arrayBuffer()], { type }));
+    }catch(e){}
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Download failed (' + r.status + ')');
+    const reader = r.body.getReader(), parts = []; let got = 0;
+    while (true){ const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; onProg?.(got); }
+    const blob = new Blob(parts, { type });
+    try{ await cache?.put(url, new Response(blob)); }catch(e){}
+    return URL.createObjectURL(blob);
+  }
+  async function loadEngine(){
+    if (engine) return engine;
+    let lastErr;
+    for (const base of ENGINE_BASES){
+      try{
+        setStatus('run indet', 'Loading the converter…', 'Getting things ready. This is a one-time download of about 32 MB.');
+        const coreURL = await fetchCached(base + '/ffmpeg-core.js', 'text/javascript');
+        const wasmURL = await fetchCached(base + '/ffmpeg-core.wasm', 'application/wasm', got => {
+          setStatus('run', 'Loading the converter…', `Downloading ${Math.min(32, Math.round(got/1048576))} of 32 MB — one time only.`, Math.min(1, got/WASM_SIZE));
+        });
+        setStatus('run indet', 'Starting the converter…', 'Almost ready.');
+        const e = makeEngine(); await e.call('load', { coreURL, wasmURL });
+        return engine = e;
+      }catch(err){ lastErr = err; if (cancelled) throw err; }
+    }
+    throw new Error('Couldn\'t load the converter. Check your internet connection and try again. (' + (lastErr?.message || '') + ')');
+  }
+
+  const FORMATS = {
+    mp4:  { label:'MP4',  desc:'Works everywhere',     kind:'video', mime:'video/mp4' },
+    webm: { label:'WebM', desc:'Small, for the web',   kind:'video', mime:'video/webm' },
+    mov:  { label:'MOV',  desc:'Apple, iMovie, Final Cut', kind:'video', mime:'video/quicktime' },
+    mkv:  { label:'MKV',  desc:'Keeps every track',    kind:'video', mime:'video/x-matroska' },
+    gif:  { label:'GIF',  desc:'Animated image',       kind:'gif',   mime:'image/gif' },
+    mp3:  { label:'MP3',  desc:'Audio, plays anywhere', kind:'audio', mime:'audio/mpeg' },
+    m4a:  { label:'M4A',  desc:'Audio, Apple devices', kind:'audio', mime:'audio/mp4' },
+    wav:  { label:'WAV',  desc:'Uncompressed audio',   kind:'audio', mime:'audio/wav' }
+  };
+  function mimeOf(ext){ return FORMATS[ext]?.mime || (ext === 'webm' ? 'video/webm' : 'video/mp4'); }
+
+  // ----- sources -----
+  function allSources(){
+    return [
+      ...recordings.map(r => ({ id:'r' + r.id, name:r.name, blob:r.blob, ext:r.ext, url:r.url, duration:r.duration/1000, group:'Your recordings' })),
+      ...uploads
+    ];
+  }
+  const currentSource = () => allSources().find(x => x.id === srcId);
+  function refreshSources(){
+    const sel = $('cvSrc'), list = allSources();
+    if (!list.find(x => x.id === srcId)) srcId = list[0]?.id || '';
+    sel.innerHTML = '';
+    if (!list.length){ sel.innerHTML = '<option value="">No videos yet — record one or choose a file</option>'; sel.disabled = true; }
+    else {
+      sel.disabled = false;
+      ['Your recordings','Your files'].forEach(g => {
+        const items = list.filter(x => x.group === g); if (!items.length) return;
+        const og = document.createElement('optgroup'); og.label = g;
+        items.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = `${x.name}.${x.ext}`; og.appendChild(o); });
+        sel.appendChild(og);
+      });
+      sel.value = srcId;
+    }
+    renderSrcInfo(); renderConvBtn();
+  }
+  function selectSource(id){ srcId = id; refreshSources(); }
+  $('cvSrc').addEventListener('change', () => { srcId = $('cvSrc').value; renderSrcInfo(); renderConvBtn(); });
+  function renderSrcInfo(){
+    const s = currentSource(), el = $('srcInfo');
+    el.classList.toggle('show', !!s);
+    if (!s) return;
+    el.innerHTML = `<b></b> · ${mb(s.blob.size)}${s.duration ? ' · ' + fmt(s.duration*1000) : ''}`;
+    el.querySelector('b').textContent = `${s.name}.${s.ext}`;
+    if (!s.duration && !s.probing){
+      s.probing = true;
+      const v = document.createElement('video'); v.preload = 'metadata'; v.src = s.url;
+      v.onloadedmetadata = () => { if (isFinite(v.duration)) { s.duration = v.duration; if (currentSource() === s) renderSrcInfo(); } };
+    }
+  }
+  function addFiles(files){
+    let last = null;
+    [...files].forEach(f => {
+      const m = f.name.match(/^(.*?)(?:\.([^.]+))?$/);
+      const ext = (m[2] || (f.type.split('/')[1] || 'mp4')).toLowerCase();
+      const s = { id:'u' + (++uploadN), name:m[1] || 'video', blob:f, ext, url:URL.createObjectURL(f), duration:0, group:'Your files' };
+      uploads.unshift(s); last = s;
+    });
+    if (last){ srcId = last.id; refreshSources(); toast('Added ' + last.name); }
+  }
+  $('pickFile').onclick = () => $('fileIn').click();
+  $('fileIn').onchange = () => { addFiles($('fileIn').files); $('fileIn').value = ''; };
+  const drop = $('drop');
+  ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => e.dataTransfer?.files?.length && addFiles(e.dataTransfer.files));
+
+  // ----- options -----
+  Object.entries(FORMATS).forEach(([k, f]) => {
+    const b = document.createElement('button'); b.className = 'fmt'; b.dataset.v = k;
+    b.innerHTML = `<i>${f.kind === 'audio' ? 'Audio' : f.kind === 'gif' ? 'Image' : 'Video'}</i><b>${f.label}</b><span>${f.desc}</span>`;
+    b.onclick = () => { if (busy) return; CV.fmt = k; saveCV(); renderConvOpts(); };
+    $('fmtGrid').appendChild(b);
+  });
+  [['cvQual','q'],['cvRes','res'],['cvGifW','gifW'],['cvGifF','gifF']].forEach(([id, key]) =>
+    $(id).querySelectorAll('button').forEach(b => b.onclick = () => { if (busy) return; CV[key] = b.dataset.v; saveCV(); renderConvOpts(); }));
+  ['cvStart','cvEnd'].forEach(id => $(id).addEventListener('input', renderConvOpts));
+  $('cvNoAudio').addEventListener('change', renderConvOpts);
+
+  function parseTime(v){
+    v = (v || '').trim(); if (!v) return 0;
+    const p = v.split(':').map(Number); if (p.some(isNaN)) return NaN;
+    return p.reduce((a, x) => a*60 + x, 0);
+  }
+  function renderConvOpts(){
+    const f = FORMATS[CV.fmt], k = f.kind;
+    document.querySelectorAll('#fmtGrid .fmt').forEach(b => b.classList.toggle('sel', b.dataset.v === CV.fmt));
+    if (k !== 'video' && CV.q === 'orig') CV.q = 'high';
+    const sel = (id, v) => $(id).querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.v === v));
+    sel('cvQual', CV.q); sel('cvRes', CV.res); sel('cvGifW', CV.gifW); sel('cvGifF', CV.gifF);
+    $('cvQual').querySelector('[data-v="orig"]').classList.toggle('cvhide', k !== 'video');
+    $('cvQualRow').classList.toggle('hide', k === 'gif' || CV.fmt === 'wav');
+    $('cvResRow').classList.toggle('hide', k !== 'video');
+    $('cvGifWRow').classList.toggle('hide', k !== 'gif'); $('cvGifFRow').classList.toggle('hide', k !== 'gif');
+    $('cvNoAudioRow').classList.toggle('cvhide', k !== 'video');
+    const start = parseTime($('cvStart').value), end = parseTime($('cvEnd').value);
+    let hint = {
+      mp4:'MP4 (H.264) opens on every phone, computer, PowerPoint and social site.',
+      webm:'WebM makes small files for websites, YouTube and Google Drive. Some apps (PowerPoint, iPhone) can\'t open it.',
+      mov:'MOV is Apple\'s format — good for iMovie, Final Cut and Keynote.',
+      mkv:'MKV keeps everything in one file and is great for archiving. Plays in VLC.',
+      gif:'GIFs have no sound and get big quickly — best for short clips under 30 seconds. Use Trim to pick the moment.',
+      mp3:'Saves just the sound — handy for podcasts, transcripts or listening on the go.',
+      m4a:'Sound only, in a format Apple devices and iTunes love.',
+      wav:'Sound only, uncompressed — best for audio editing. Files are large.'
+    }[CV.fmt];
+    if (k === 'video') hint += CV.q === 'orig' && CV.res === 'orig' ? ' "Original" quality skips re-encoding, so it\'s nearly instant.' : ' Re-encoding takes roughly as long as the video plays, sometimes longer.';
+    if (isNaN(start) || isNaN(end)) hint = 'Write trim times like 1:30 or 0:05 (minutes:seconds).';
+    else if (end && end <= start) hint = 'The end time must be after the start time.';
+    $('cvHint').textContent = hint;
+    renderConvBtn();
+  }
+  function renderConvBtn(){
+    const start = parseTime($('cvStart').value), end = parseTime($('cvEnd').value);
+    const bad = isNaN(start) || isNaN(end) || (end && end <= start);
+    $('cvGo').disabled = busy || !currentSource() || bad;
+    $('cvGoLbl').textContent = busy ? 'Converting…' : `Convert to ${FORMATS[CV.fmt].label}`;
+  }
+
+  // ----- status -----
+  const ICONS = {
+    idle:'<path d="M4 7h11l-3-3M20 17H9l3 3"/>',
+    run:'<path d="M21 12a9 9 0 1 1-6.2-8.6"/>',
+    ok:'<path d="M20 6L9 17l-5-5"/>',
+    err:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>'
+  };
+  function setStatus(cls, title, sub, pct){
+    const st = $('cvStatus'); st.className = 'status ' + cls;
+    const key = cls.includes('run') ? 'run' : cls.includes('ok') ? 'ok' : cls.includes('err') ? 'err' : 'idle';
+    $('cvIco').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">${ICONS[key]}</svg>`;
+    $('cvTitle').textContent = title; $('cvSub').textContent = sub || '';
+    if (pct != null) $('cvBar').style.width = Math.round(pct*100) + '%';
+  }
+
+  // ----- build the FFmpeg command -----
+  function buildArgs(src, inName, outName, start, len, forceEncode){
+    const f = FORMATS[CV.fmt], k = f.kind, q = CV.q, a = ['-hide_banner', '-y'];
+    if (start) a.push('-ss', String(start));
+    a.push('-i', '/in/' + inName);
+    if (len) a.push('-t', String(len));
+    let copied = false;
+    if (k === 'audio'){
+      const br = { high:'192k', balanced:'128k', small:'96k' }[q] || '192k';
+      a.push('-vn');
+      if (CV.fmt === 'mp3') a.push('-c:a', 'libmp3lame', '-b:a', br);
+      if (CV.fmt === 'm4a') a.push('-c:a', 'aac', '-b:a', br);
+      if (CV.fmt === 'wav') a.push('-c:a', 'pcm_s16le');
+    } else if (k === 'gif'){
+      const scale = CV.gifW === 'orig' ? 'scale=iw:-2' : `scale='min(${CV.gifW},iw)':-2:flags=lanczos`;
+      a.push('-vf', `fps=${CV.gifF},${scale},split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=4`, '-loop', '0', '-an');
+    } else {
+      copied = q === 'orig' && CV.res === 'orig' && !forceEncode;
+      if (copied) a.push('-c:v', 'copy');
+      else if (CV.fmt === 'webm'){
+        // VP8 is the WebM encoder that runs reliably inside the browser engine
+        const crf = { orig:8, high:10, balanced:20, small:32 }[q], cap = { orig:'6M', high:'4M', balanced:'2M', small:'1M' }[q];
+        a.push('-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8', '-crf', String(crf), '-b:v', cap);
+      } else {
+        const crf = { orig:18, high:21, balanced:26, small:31 }[q];
+        a.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(crf), '-pix_fmt', 'yuv420p');
+      }
+      if (!copied && CV.res !== 'orig') a.push('-vf', `scale=-2:'min(${CV.res},ih)'`);
+      if ($('cvNoAudio').checked) a.push('-an');
+      else {
+        const abr = { orig:'160k', high:'160k', balanced:'128k', small:'96k' }[q];
+        if (CV.fmt === 'webm') a.push('-c:a', 'libvorbis', '-b:a', abr);   // Opus crashes this engine build; Vorbis is reliable
+        else if (CV.fmt === 'mkv' && copied) a.push('-c:a', 'copy');
+        else a.push('-c:a', 'aac', '-b:a', abr);
+      }
+      if (CV.fmt === 'mp4' || CV.fmt === 'mov') a.push('-movflags', '+faststart');
+    }
+    a.push(outName);
+    return { args:a, copied };
+  }
+
+  async function runFF(e, args, total, label){
+    const t0 = Date.now(); const tail = [];
+    e.onLog = msg => {
+      tail.push(msg); if (tail.length > 12) tail.shift();
+      const m = /time=\s*(\d+):(\d+):([\d.]+)/.exec(msg);
+      if (m && total){
+        const t = (+m[1])*3600 + (+m[2])*60 + (+m[3]);
+        const p = Math.min(.99, Math.max(0, t/total)), spent = (Date.now()-t0)/1000;
+        const left = p > .02 ? Math.max(1, Math.round(spent*(1-p)/p)) : null;
+        setStatus('run', label, `${Math.round(p*100)}%${left ? ' · about ' + fmt(left*1000) + ' left' : ''} · keep this tab open`, p);
+      }
+    };
+    const ret = await e.call('exec', args);
+    return { ret, tail };
+  }
+
+  async function convert(){
+    const src = currentSource(); if (!src || busy) return;
+    const f = FORMATS[CV.fmt];
+    busy = true; cancelled = false; renderConvBtn(); notice('');
+    $('cvCancel').style.display = '';
+    const label = `Converting to ${f.label}…`;
+    try{
+      const e = await loadEngine();
+      setStatus('run indet', label, 'Preparing your video…', 0);
+      const inName = 'input.' + (src.ext || 'mp4').replace(/[^a-z0-9]/gi, ''), outName = '/output.' + CV.fmt;
+      await e.call('unmount');
+      await e.call('mount', { blob:src.blob, name:inName });
+      const start = parseTime($('cvStart').value), end = parseTime($('cvEnd').value);
+      const dur = src.duration || 0;
+      const len = end ? end - start : 0;
+      const total = len || Math.max(0, dur - start) || 0;
+      let { args, copied } = buildArgs(src, inName, outName, start, len, false);
+      setStatus(total ? 'run' : 'run indet', label, copied ? 'Copying the video into the new format…' : 'Starting…', 0);
+      let r = await runFF(e, args, total, label);
+      if (r.ret !== 0 && copied && !cancelled){
+        // this video can't be copied as-is into that format, so re-encode it
+        ({ args } = buildArgs(src, inName, outName, start, len, true));
+        setStatus('run', label, 'Re-encoding for this format…', 0);
+        r = await runFF(e, args, total, label);
+      }
+      if (r.ret !== 0) throw new Error(friendlyError(r.tail));
+      const data = await e.call('read', { path:outName });
+      await e.call('rm', { path:outName }); await e.call('unmount');
+      if (!data || !data.byteLength) throw new Error('The converted file came out empty. Try another format.');
+      const blob = new Blob([data], { type:f.mime });
+      const trimmed = start || end;
+      const out = { id:Date.now(), name: src.name + (trimmed ? ' (clip)' : ''), ext:CV.fmt, blob, url:URL.createObjectURL(blob), kind:f.kind, from:src.blob.size };
+      outputs.unshift(out); renderOutputs();
+      const diff = Math.round((1 - blob.size/src.blob.size) * 100);
+      setStatus('ok', 'Done!', `${f.label} ready · ${mb(blob.size)}${diff > 3 ? ` · ${diff}% smaller` : diff < -3 ? ` · ${-diff}% larger` : ''}`, 1);
+      if (saveMode === 'folder') save(out, true);
+    }catch(err){
+      if (cancelled) setStatus('idle', 'Conversion cancelled', 'Nothing was saved. You can start again any time.');
+      else setStatus('err', 'Couldn\'t convert this video', err.message || String(err));
+      if (engine && !cancelled){ try{ await engine.call('unmount'); }catch(e){} }
+    }finally{
+      busy = false; $('cvCancel').style.display = 'none'; renderConvBtn();
+    }
+  }
+  function friendlyError(tail){
+    const t = tail.join('\n');
+    if (/memory|OOM|Aborted\(\)/i.test(t)) return 'This video is too large to convert in the browser. Try trimming it, or a lower resolution.';
+    if (/Invalid data|could not find codec|moov atom/i.test(t)) return 'This file looks damaged or uses a format the converter can\'t read.';
+    if (/does not contain any stream|Output file .* does not contain|matches no streams/i.test(t)) return 'There\'s nothing to convert — for example, the video has no sound to turn into audio.';
+    return 'The converter hit a problem: ' + (tail.filter(l => /error|invalid|fail/i.test(l)).pop() || tail.pop() || 'unknown error');
+  }
+  $('cvGo').onclick = convert;
+  $('cvCancel').onclick = () => { if (!busy) return; cancelled = true; engine?.kill(); engine = null; };
+
+  // ----- converted files -----
+  function renderOutputs(){
+    const list = $('outList'); list.innerHTML = '';
+    outputs.forEach(o => {
+      const it = document.createElement('div'); it.className = 'outitem';
+      let pv;
+      if (o.ext === 'gif') pv = `<div class="pv"><img alt="Converted GIF preview"></div>`;
+      else if (o.ext === 'mp4' || o.ext === 'webm') pv = `<div class="pv"><video controls playsinline preload="metadata"></video></div>`;
+      else if (o.kind === 'audio') pv = `<div class="pv aud"><audio controls preload="metadata"></audio></div>`;
+      else pv = `<div class="pv icon">.${o.ext.toUpperCase()}</div>`;
+      it.innerHTML = pv + `<div class="outbody"><div class="t"><b></b><small>${FORMATS[o.ext].label} · ${mb(o.blob.size)}${o.savedTo ? ' · <em>Saved</em>' : ''}</small></div>
+        <button class="btn sm primary" data-a="save"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Save</button>
+        <button class="mini" data-a="del" title="Remove" aria-label="Remove"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>`;
+      it.querySelector('b').textContent = `${o.name}.${o.ext}`;
+      const m = it.querySelector('img,video,audio'); if (m) m.src = o.url;
+      it.querySelector('[data-a="save"]').onclick = () => save(o);
+      it.querySelector('[data-a="del"]').onclick = () => { outputs.splice(outputs.indexOf(o), 1); URL.revokeObjectURL(o.url); renderOutputs(); };
+      list.appendChild(it);
+    });
+  }
+
+  renderConvOpts();
+
+  renderLib();
+
+  window.addEventListener('beforeunload', e => {
+    if ((recorder && recorder.state !== 'inactive') || recordings.length){ e.preventDefault(); e.returnValue = ''; }
+  });
+})();
+</script>
+</body>
+</html>
